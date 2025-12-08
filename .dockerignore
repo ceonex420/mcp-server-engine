@@ -1,0 +1,100 @@
+# ============================================================================
+# Docker Ignore - Odiseo MCP Server
+# ============================================================================
+# Excludes files from Docker build context for faster builds and smaller images
+
+# Python bytecode and caches
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.egg-info/
+*.egg
+.eggs/
+
+# Build artifacts
+build/
+dist/
+develop-eggs/
+downloads/
+eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+.installed.cfg
+
+# Virtual environments
+.env
+.venv
+env/
+venv/
+ENV/
+.env.local
+*.local
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+.nox/
+tests/
+
+# IDE and editors
+.idea/
+.vscode/
+*.swp
+*.swo
+*.sublime-*
+.claude/
+
+# Linting and formatting caches
+.ruff_cache/
+.mypy_cache/
+
+# Logs (will be mounted as volume)
+logs/
+*.log
+
+# Documentation (except README)
+*.md
+!README.md
+docs/
+
+# Git
+.git/
+.gitignore
+.gitattributes
+
+# OS files
+.DS_Store
+Thumbs.db
+*.bak
+*.tmp
+
+# Local configuration
+.env.local
+.env.development
+.env.test
+
+# Credentials (mounted separately)
+credentials/
+*.json
+
+# Docker files (not needed inside container)
+Dockerfile*
+docker-compose*.yml
+.dockerignore
+
+# Makefile and scripts
+Makefile
+scripts/
+*.sh
+
+# Requirements specification docs
+REQ/
+CLAUDE.md

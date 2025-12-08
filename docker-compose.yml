@@ -1,0 +1,141 @@
+# ============================================================================
+# Odiseo MCP Server - Docker Compose Configuration
+# ============================================================================
+# Production-ready deployment with 12 MCP tools:
+#   - Product Search (semantic, fuzzy, SKU lookup)
+#   - Booking Management (Google Calendar integration)
+#
+# Usage:
+#   docker compose up -d              # Start services
+#   docker compose logs -f mcp        # View logs
+#   docker compose down               # Stop services
+#
+# Prerequisites:
+#   - PostgreSQL with pgvector extension (via docker-config network)
+#   - .env file with required environment variables
+#
+# Author: Odiseo Team
+# Version: 1.1.0
+# ============================================================================
+
+services:
+  # ==========================================================================
+  # MCP Server Service
+  # ==========================================================================
+  mcp:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: ${SERVICE_NAME:-mcp-server}
+    command: ["python", "server.py"]
+    ports:
+      - "${MCP_PORT:-8009}:${MCP_PORT:-8009}"
+    environment:
+      # ======================================================================
+      # Server Configuration
+      # ======================================================================
+      - MCP_PORT=${MCP_PORT:-8009}
+      - MAX_CONCURRENT_REQUESTS=${MAX_CONCURRENT_REQUESTS:-50}
+      - DEBUG_MODE=${DEBUG_MODE:-false}
+
+      # ======================================================================
+      # Database Configuration
+      # ======================================================================
+      - DATABASE_URL=postgresql://${POSTGRES_USER:-mcp_user}:${POSTGRES_PASSWORD:-mcp_password}@${POSTGRES_HOST:-mcp-postgres}:${POSTGRES_PORT:-5432}/${POSTGRES_DB:-mcpdb}
+      - SCHEMA_NAME=${SCHEMA_NAME:-test}
+
+      # ======================================================================
+      # Google AI (Gemini Embeddings)
+      # ======================================================================
+      - GOOGLE_API_KEY=${GOOGLE_API_KEY}
+      - EMBEDDING_MODEL=${EMBEDDING_MODEL:-gemini-embedding-001}
+      - BATCH_SIZE=${BATCH_SIZE:-8}
+
+      # ======================================================================
+      # Google Calendar (Booking Integration)
+      # ======================================================================
+      - GOOGLE_CALENDAR_ENABLED=${GOOGLE_CALENDAR_ENABLED:-false}
+      - GOOGLE_CALENDAR_CREDENTIALS_PATH=/app/credentials/service-account.json
+      - GOOGLE_CALENDAR_ID=${GOOGLE_CALENDAR_ID:-primary}
+      - GOOGLE_CALENDAR_TIMEZONE=${GOOGLE_CALENDAR_TIMEZONE:-America/Costa_Rica}
+
+      # ======================================================================
+      # Booking Configuration
+      # ======================================================================
+      - BOOKING_DEFAULT_DURATION_MINUTES=${BOOKING_DEFAULT_DURATION_MINUTES:-60}
+      - BOOKING_SLOT_INTERVAL_MINUTES=${BOOKING_SLOT_INTERVAL_MINUTES:-30}
+      - BOOKING_ADVANCE_BOOKING_DAYS=${BOOKING_ADVANCE_BOOKING_DAYS:-30}
+      - BOOKING_MIN_ADVANCE_MINUTES=${BOOKING_MIN_ADVANCE_MINUTES:-60}
+      - BOOKING_MAX_DAILY_APPOINTMENTS=${BOOKING_MAX_DAILY_APPOINTMENTS:-10}
+
+      # ======================================================================
+      # Memory System Configuration
+      # ======================================================================
+      - MEMORY_ENABLED=${MEMORY_ENABLED:-true}
+      - MEMORY_TTL_DAYS=${MEMORY_TTL_DAYS:-90}
+      - MEMORY_MAX_HISTORY_TURNS=${MEMORY_MAX_HISTORY_TURNS:-10}
+      - MEMORY_SEMANTIC_EXTRACTION_ENABLED=${MEMORY_SEMANTIC_EXTRACTION_ENABLED:-true}
+
+      # ======================================================================
+      # Logging Configuration
+      # ======================================================================
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+      - LOG_DIR=/app/logs
+      - LOG_MAX_SIZE_MB=${LOG_MAX_SIZE_MB:-10}
+      - LOG_BACKUP_COUNT=${LOG_BACKUP_COUNT:-5}
+
+    volumes:
+      # Persistent logs (named volume for proper permissions)
+      - mcp-logs:/app/logs
+      # Google Calendar credentials (if enabled)
+      - ${GOOGLE_CALENDAR_CREDENTIALS_PATH:-./credentials}:/app/credentials:ro
+
+    networks:
+      - docker-config
+
+    # Docker daemon log rotation
+    logging:
+      driver: "${LOG_DRIVER:-json-file}"
+      options:
+        max-size: "${LOG_MAX_SIZE:-10m}"
+        max-file: "${LOG_MAX_FILE:-3}"
+
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import os; import urllib.request; urllib.request.urlopen(f'http://localhost:{os.environ.get(\\\"MCP_PORT\\\", \\\"8009\\\")}/health', timeout=5)\""]
+      interval: ${HEALTHCHECK_INTERVAL:-30s}
+      timeout: ${HEALTHCHECK_TIMEOUT:-10s}
+      start_period: ${HEALTHCHECK_START_PERIOD:-15s}
+      retries: ${HEALTHCHECK_RETRIES:-3}
+
+    deploy:
+      resources:
+        limits:
+          cpus: '2.0'
+          memory: 1G
+        reservations:
+          cpus: '0.5'
+          memory: 256M
+
+    restart: unless-stopped
+
+    labels:
+      - "com.odiseo.service=mcp-server"
+      - "com.odiseo.version=1.1.0"
+      - "com.odiseo.description=Model Context Protocol Server with 12 tools"
+
+# ============================================================================
+# Volumes
+# ============================================================================
+volumes:
+  mcp-logs:
+    name: ${SERVICE_NAME:-mcp-server}-logs
+
+# ============================================================================
+# Networks
+# ============================================================================
+networks:
+  docker-config:
+    external: true
+    # Note: This network should be created externally and contain:
+    # - mcp-postgres: PostgreSQL with pgvector extension
+    # Create with: docker network create docker-config

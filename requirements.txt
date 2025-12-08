@@ -1,0 +1,39 @@
+# ============================================================================
+# Odiseo MCP Server - Production Dependencies
+# ============================================================================
+# Generated from pyproject.toml for compatibility
+# For package management, use: pip install -e .
+
+# MCP Framework (includes starlette, httpx, pydantic as dependencies)
+mcp>=1.23.0
+
+# Database (async)
+asyncpg>=0.29.0
+pgvector>=0.4.1
+
+# AI/ML - Google Gemini Embeddings
+google-genai>=1.49.0
+
+# Google Calendar API (for bookings integration)
+google-api-python-client>=2.100.0
+
+# Configuration Management
+python-dotenv>=1.0.0
+pydantic>=2.11.0
+pydantic-settings>=2.11.0
+
+# Web Server
+uvicorn>=0.30.0
+
+# ============================================================================
+# Development Dependencies (install with: pip install -e .[dev])
+# ============================================================================
+# ruff>=0.8.0        # Linting and formatting
+# pytest>=8.0.0      # Testing framework
+# httpx>=0.27.0      # HTTP client for testing
+
+# ============================================================================
+# Installation Instructions
+# ============================================================================
+# Production: pip install -r requirements.txt
+# Development: pip install -e .[dev]

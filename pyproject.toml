@@ -1,0 +1,86 @@
+[build-system]
+requires = ["setuptools", "wheel"]
+
+[project]
+name = "odiseo-mcp-server"
+version = "1.1.0"
+description = "Production-ready MCP server with 22 tools: product search, booking, and user management"
+authors = [{name = "Odiseo Team"}]
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "mcp>=1.23.0",                    # Official MCP SDK from Anthropic (latest stable)
+    "psycopg2-binary>=2.9.10",        # PostgreSQL adapter
+    "pgvector>=0.4.1",                # Vector operations for semantic search
+    "google-genai>=1.49.0",           # Google Gemini embeddings
+    "google-api-python-client>=2.100.0",  # Google Calendar API
+    "python-dotenv>=1.0.0",           # Environment variable loading
+    "uvicorn>=0.30.0",                # ASGI server
+    "pydantic>=2.11.0",               # Data validation
+    "pydantic-settings>=2.11.0",      # Settings management from .env
+]
+
+[project.optional-dependencies]
+dev = [
+    "ruff>=0.8.0",
+    "pytest>=8.0.0",
+    "httpx>=0.27.0",  # HTTP client for testing
+]
+
+[tool.ruff]
+# Configuración ruff para mejores prácticas de formateo
+line-length = 100  # Aumentar a 100 para strings largos
+target-version = "py310"
+
+[tool.ruff.lint]
+# Seleccionar reglas importantes para código limpio
+select = [
+    "E",    # pycodestyle errors
+    "W",    # pycodestyle warnings
+    "F",    # pyflakes
+    "I",    # isort (import sorting)
+    "N",    # pep8-naming
+    "UP",   # pyupgrade
+    "B",    # flake8-bugbear
+    "C4",   # flake8-comprehensions
+    "RET",  # flake8-return
+    "SIM",  # flake8-simplify
+    "RUF",  # Ruff-specific rules
+    "PERF", # Performance anti-patterns
+]
+
+# Ignorar reglas específicas
+ignore = [
+    "E501",    # line-too-long (manejado por formatter)
+    "N999",    # invalid-module-name (directory has hyphen in name)
+    "RET504",  # unnecessary-assign (readability preference)
+    "PERF203", # try-except in loop (intentional for retry logic)
+    "PERF401", # manual-list-comprehension (readability preference)
+    "PERF402", # manual-list-copy (readability preference)
+]
+
+[tool.ruff.lint.mccabe]
+# Threshold de complejidad ciclomática (default: 10)
+max-complexity = 15
+
+[tool.ruff.lint.per-file-ignores]
+# Permitir líneas más largas en archivos específicos con strings descriptivos
+"mcp_handlers/prompt_handlers.py" = ["E501"]
+"tools/fuzzy_search.py" = ["E501", "C901"]  # Algoritmos de búsqueda multi-tier
+"server.py" = ["E501"]
+"tests/test_official_mcp_fixed.py" = ["E501", "C901"]  # Test de integración complejo
+# Config con funciones que actúan como constantes (uppercase intencional)
+"config/otp_session_config.py" = ["N802"]
+# MCP handlers con registro de múltiples tools
+"mcp_handlers/booking_handlers.py" = ["C901"]
+"mcp_handlers/product_handlers.py" = ["C901"]
+"mcp_handlers/resource_handlers.py" = ["C901"]
+"mcp_handlers/tool_discovery_validator.py" = ["C901"]  # Validación multi-registry
+# Business logic con múltiples validaciones
+"tools/bookings.py" = ["C901"]
+
+[tool.ruff.format]
+# Configuración del formatter
+quote-style = "double"
+indent-style = "space"
+line-ending = "auto"

@@ -1,0 +1,15 @@
+- Proyecto refactorizado
+- Sistema i18n eliminado (el LLM maneja la localización via prompts)
+- Módulo tools reorganizado: tools/sales/ contiene fetch, search, fuzzy_search
+- MCP handlers renombrados: product_handlers.py → sales_handlers.py
+- Recursos MCP actualizados: tool-categories://sales
+- All tool docstrings and messages in English
+- MCP Server es proveedor puro de herramientas (prompts de agentes en servicio separado)
+- Rate limiting implementado (utils/rate_limiter.py) para OTP y búsquedas
+- MCP Context usage: ctx.report_progress(), ctx.info(), ctx.debug(), ctx.warning(), ctx.error()
+- Resources async con MIME types y error responses estructurados en JSON
+- ToolAnnotations agregadas a tools principales (readOnlyHint, idempotentHint, openWorldHint)
+- Embedding caching implementado (1000 entries LRU cache)
+- Reorganización: tool_registry.py y tool_discovery_validator.py movidos a utils/
+- Agregar banner a MCP
+- Mcp funcionando
