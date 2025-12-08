@@ -6,13 +6,13 @@
 ![Code Style](https://img.shields.io/badge/code%20style-ruff-black)
 [![Pydantic v2](https://img.shields.io/badge/pydantic-v2-E92063.svg)](https://docs.pydantic.dev/)
 ![Status](https://img.shields.io/badge/status-production--ready-brightgreen)
-![Tools](https://img.shields.io/badge/MCP%20Tools-12-orange)
+![Tools](https://img.shields.io/badge/MCP%20Tools-14-orange)
 
-Production-ready Model Context Protocol (MCP) server implementing Anthropic's official specification. Features **12 MCP tools** across two domains: AI-powered product search (semantic + fuzzy) and booking/appointment management with Google Calendar integration. Built with PostgreSQL + pgvector, asyncpg for async database operations, and Google Gemini embeddings. Includes concurrency control and rate limiting for production workloads.
+Production-ready Model Context Protocol (MCP) server implementing Anthropic's official specification. Features **14 MCP tools** across three domains: AI-powered product search (semantic + fuzzy), booking/appointment management with Google Calendar integration, and secure OTP verification via email. Built with PostgreSQL + pgvector, asyncpg for async database operations, and Google Gemini embeddings. Includes concurrency control, rate limiting, and cryptographically secure OTP generation for production workloads.
 
 ## Description
 
-This MCP server provides a comprehensive AI assistant backend with two integrated domains:
+This MCP server provides a comprehensive AI assistant backend with three integrated domains:
 
 ### Product Search (4 tools)
 - **Semantic Search**: AI-powered conceptual search using 1536-dimensional Gemini embeddings (~490ms)
@@ -25,6 +25,13 @@ This MCP server provides a comprehensive AI assistant backend with two integrate
 - **Availability Management**: Real-time slot availability based on business hours
 - **Customer Bookings**: Track and manage customer appointment history
 - **Service Catalog**: Dynamic service types with pricing and duration
+
+### OTP Verification (2 tools)
+- **Secure Generation**: Cryptographically secure OTP codes using Python's `secrets` module
+- **Email Delivery**: Automatic OTP delivery via integrated email service
+- **Hash Storage**: OTP codes stored as SHA-256 hashes (never plaintext)
+- **Brute-force Protection**: Maximum attempts limit and rate limiting
+- **Configurable Expiration**: Customizable OTP validity period (default: 10 minutes)
 
 ### Production Features
 - **Concurrency Control**: Semaphore-based limiting (default: 50 concurrent requests)
@@ -59,7 +66,7 @@ Built with modern Python 3.10+, async/await patterns, and comprehensive type saf
 ### Core Capabilities
 
 - ✅ **100% MCP Compliant**: Implements Anthropic's official MCP specification (v1.21.0)
-- ✅ **12 MCP Tools**: Product search (4), Booking (8)
+- ✅ **14 MCP Tools**: Product search (4), Booking (8), OTP (2)
 - ✅ **5 MCP Resources**: Dynamic tool discovery and database statistics
 - ✅ **2 MCP Prompts**: AI assistant templates for search and comparison
 - ✅ **Google Calendar Integration**: Automatic appointment sync
@@ -78,6 +85,8 @@ Built with modern Python 3.10+, async/await patterns, and comprehensive type saf
 | Semantic Search | ~490ms | AI embedding-based conceptual search |
 | Create Booking | ~150-300ms | With Google Calendar sync |
 | Get Available Slots | ~50-100ms | Real-time availability check |
+| Generate OTP | ~100-200ms | Generate + store + send email |
+| Verify OTP | ~50-100ms | Hash comparison + DB update |
 | Health Check | <50ms | Database connectivity and extension checks |
 
 ## Visuals
@@ -412,6 +421,13 @@ Complete configuration reference:
 | `LOG_DIR` | No | `logs` | Log directory path |
 | **Performance** ||||
 | `PGVECTOR_IVF_LISTS` | No | `100` | pgvector IVF lists count |
+| **OTP Configuration** ||||
+| `OTP_ENABLED` | No | `true` | Enable OTP generation and verification |
+| `OTP_CODE_LENGTH` | No | `6` | OTP code length (4-8 digits) |
+| `OTP_EXPIRY_MINUTES` | No | `10` | Minutes until OTP expires (1-60) |
+| `OTP_MAX_ATTEMPTS` | No | `3` | Max verification attempts (1-10) |
+| `OTP_COOLDOWN_SECONDS` | No | `60` | Seconds between OTP requests (30-300) |
+| `OTP_HASH_ALGORITHM` | No | `sha256` | Hash algorithm (sha256, sha384, sha512) |
 
 ### Configuration Examples
 
@@ -733,7 +749,7 @@ curl http://localhost:8009/health | jq
 
 ## API Reference
 
-### MCP Tools (12 total)
+### MCP Tools (14 total)
 
 #### Product Tools (4)
 
@@ -764,6 +780,21 @@ curl http://localhost:8009/health | jq
 **Concurrency & Rate Limiting:**
 - `create_booking`, `cancel_booking`, `reschedule_booking`: Concurrency controlled + 20 req/min rate limit
 - Read operations (`get_*`, `list_*`): No limiting (fast, read-only)
+
+#### OTP Tools (2)
+
+| Tool | Response | Description |
+|------|----------|-------------|
+| `generate_otp` | ~100-200ms | Generate OTP, store hash, send via email |
+| `verify_otp` | ~50-100ms | Verify OTP code with timing-safe comparison |
+
+**Security Features:**
+- Cryptographically secure generation (`secrets` module)
+- SHA-256 hash storage (never plaintext)
+- Timing-attack resistant comparison (`secrets.compare_digest`)
+- Maximum attempts limit (default: 3)
+- Configurable expiration (default: 10 minutes)
+- Rate limiting (5 req/min per email)
 
 ### MCP Resources (5)
 
@@ -823,10 +854,11 @@ mcp_server/
 │   ├── __init__.py
 │   ├── settings.py              # Pydantic v2 settings
 │   └── booking_constants.py     # Booking enums and constants
-├── mcp_handlers/                # MCP protocol handlers (12 tools)
+├── mcp_handlers/                # MCP protocol handlers (14 tools)
 │   ├── __init__.py
 │   ├── sales_handlers.py        # Product tools (4) with concurrency control
 │   ├── booking_handlers.py      # Booking tools (8) with rate limiting
+│   ├── otp_handler.py           # OTP tools (2) with security controls
 │   ├── resource_handlers.py     # MCP Resources (5)
 │   └── prompt_handlers.py       # MCP Prompts (2)
 ├── tools/                       # Business logic (modular packages)
@@ -839,11 +871,18 @@ mcp_server/
 │   │   ├── helpers.py           # Atomic transactions (row-level locking)
 │   │   ├── calendar.py          # Google Calendar integration
 │   │   └── email.py             # Fire-and-forget notifications
-│   └── sales/                   # Sales module (4 files)
+│   ├── sales/                   # Sales module (4 files)
+│   │   ├── __init__.py          # Public API exports
+│   │   ├── fetch.py             # SKU/ID lookup (sync + async)
+│   │   ├── search.py            # Semantic vector search (sync + async)
+│   │   └── fuzzy_search.py      # Typo-tolerant text search
+│   └── otp/                     # OTP module (4 files)
 │       ├── __init__.py          # Public API exports
-│       ├── fetch.py             # SKU/ID lookup (sync + async)
-│       ├── search.py            # Semantic vector search (sync + async)
-│       └── fuzzy_search.py      # Typo-tolerant text search
+│       ├── generator.py         # Cryptographically secure OTP generation
+│       ├── storage.py           # Database operations (Repository pattern)
+│       └── validator.py         # Timing-safe OTP verification
+├── sql/                         # Database migrations
+│   └── 001_create_otp_codes.sql # OTP table schema
 ├── utils/                       # Utilities (11 modules)
 │   ├── __init__.py
 │   ├── db_async.py              # Async PostgreSQL with asyncpg
@@ -1574,17 +1613,25 @@ See the [LICENSE](../LICENSE) file in the project root for full details.
 This project is **actively maintained** and **production-ready**.
 
 **Stability:** Stable
-**Version:** 1.4.0
+**Version:** 1.5.0
 **MCP Protocol:** 1.21.0 (Official Anthropic SDK)
 **Last Updated:** December 2025
 
-**Recent Changes (v1.4.0):**
+**Recent Changes (v1.5.0):**
+- ✅ OTP (One-Time Password) verification system with 2 new tools
+- ✅ Cryptographically secure OTP generation (`secrets` module)
+- ✅ SHA-256 hash storage (never stores plaintext codes)
+- ✅ Timing-attack resistant verification (`secrets.compare_digest`)
+- ✅ Configurable expiration, max attempts, and cooldown
+- ✅ Email integration for OTP delivery
+- ✅ New `tools/otp/` module with generator, storage, validator
+- ✅ SQL migration for `otp_codes` table
+
+**Previous (v1.4.0):**
 - ✅ Concurrency control with semaphore-based limiting (50 concurrent requests)
 - ✅ Rate limiting for search (30/min) and booking (20/min) operations
 - ✅ Full async database migration (asyncpg replaces psycopg2)
 - ✅ Docker improvements: named volumes, log rotation, configurable healthcheck
-- ✅ New `utils/concurrency.py` module
-- ✅ Streamlined to 12 tools (removed user management - handled by separate service)
 
 **Previous (v1.3.0):**
 - ✅ HTTP Email Service Integration with Circuit Breaker pattern
