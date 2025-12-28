@@ -53,7 +53,7 @@ scripts/
 - IAM Authentication: `--no-allow-unauthenticated`
 - Service Account: `mcp-server-sa@gen-lang-client-0329024102.iam.gserviceaccount.com`
 - Orchestrator Access: `orchestrator-sa` has `roles/run.invoker`
-- Secrets: Secret Manager (database-url, google-api-key)
+- Secrets: Only `database-url` in Secret Manager (GOOGLE_API_KEY not needed - uses ADC)
 
 ### Cloud Build Steps
 1. Quality checks (ruff, mypy, bandit) with UV
@@ -75,7 +75,7 @@ scripts/
   - USE_ADC=true (Application Default Credentials)
 - From Secret Manager `--set-secrets`:
   - DATABASE_URL=database-url:latest
-  - GOOGLE_API_KEY=google-api-key:latest
+  - (GOOGLE_API_KEY not needed - USE_ADC=true handles embeddings via Vertex AI)
 
 ### Service Integration
 - Updated `/home/javort/shared-libs/internal_service_client.py`
@@ -158,7 +158,7 @@ make install-dev
 ┌─────────────────┐  ┌─────────────────┐  ┌─────────────────┐
 │   Cloud SQL     │  │ Secret Manager  │  │  AI Platform    │
 │   PostgreSQL    │  │  database-url   │  │ Gemini Embed    │
-│   + pgvector    │  │  google-api-key │  │  (via ADC)      │
+│   + pgvector    │  │    (only)       │  │  (via ADC)      │
 └─────────────────┘  └─────────────────┘  └─────────────────┘
 ```
 

@@ -148,18 +148,17 @@ echo "DATABASE_URL: $DATABASE_URL"
 
 ## Phase 3: Secret Manager Setup
 
-### 3.1 Create Secrets
+### 3.1 Create Database Secret
 
 ```bash
-# Store database URL
+# Store database URL (only secret needed - embeddings use ADC)
 echo -n "$DATABASE_URL" | gcloud secrets create database-url --data-file=-
 
-# Store Google API Key (get from https://aistudio.google.com/apikey)
-echo -n "your-google-api-key" | gcloud secrets create google-api-key --data-file=-
-
-# Verify secrets
+# Verify secret
 gcloud secrets list
 ```
+
+> **Note:** `GOOGLE_API_KEY` is NOT needed in production. Cloud Run uses Application Default Credentials (ADC) with `USE_ADC=true` for Gemini embeddings via Vertex AI.
 
 ### 3.2 (Optional) Update Secrets Later
 
@@ -531,7 +530,7 @@ curl http://localhost:8080/health
 ┌─────────────────┐  ┌─────────────────┐  ┌─────────────────┐
 │   Cloud SQL     │  │ Secret Manager  │  │  AI Platform    │
 │   PostgreSQL    │  │  database-url   │  │ Gemini Embed    │
-│   + pgvector    │  │  google-api-key │  │  (via ADC)      │
+│   + pgvector    │  │    (only)       │  │  (via ADC)      │
 └─────────────────┘  └─────────────────┘  └─────────────────┘
 ```
 
@@ -539,9 +538,9 @@ curl http://localhost:8080/health
 
 - **IAM Authentication:** `--no-allow-unauthenticated`
 - **Service Account:** Workload Identity Federation
-- **Secrets:** Secret Manager (never in env vars)
+- **Secrets:** Only `database-url` in Secret Manager
 - **Database:** Cloud SQL with private connection
-- **Embeddings:** Application Default Credentials (no API key in production)
+- **Embeddings:** Application Default Credentials (USE_ADC=true, no API key needed)
 
 ---
 
