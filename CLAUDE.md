@@ -18,17 +18,36 @@
 - MCP funcionando
 - UV package manager (10-100x faster than pip) - migración completa
 - 45 productos de prueba cargados en test.products con embeddings
+- Documentación completa de despliegue en deploy/README.md (8 fases)
 
 ## Cloud Run Deployment (Dec 2025)
+
+> **Complete Guide:** See `deploy/README.md` for step-by-step deployment from scratch.
 
 ### Deployment Structure
 ```
 deploy/
 ├── Dockerfile.cloudrun    # Multi-stage build with UV package manager
 ├── env.production         # Production environment variables reference
-└── README.md             # Deployment guide
-cloudbuild.yaml           # Cloud Build configuration (6 steps)
+└── README.md              # Complete 8-phase deployment guide
+cloudbuild.yaml            # Cloud Build configuration (6 steps)
+sql/
+├── 000_init_extensions_and_schema.sql  # Database initialization
+└── 001_create_otp_codes.sql            # OTP table migration
+scripts/
+├── init_cloud_sql.py      # Python database initializer
+└── load_sample_products.py # Sample product loader with embeddings
 ```
+
+### Deployment Phases (deploy/README.md)
+1. **GCP Project Setup** - APIs, Artifact Registry
+2. **Cloud SQL Setup** - PostgreSQL 15, pgvector, user
+3. **Secret Manager Setup** - database-url, google-api-key
+4. **Service Account Config** - IAM roles (cloudsql.client, secretmanager.secretAccessor, aiplatform.user)
+5. **Database Initialization** - Extensions, schema, tables, functions
+6. **Deploy to Cloud Run** - Cloud Build or manual
+7. **Verification** - Health checks, logs
+8. **Load Sample Data** - Products with embeddings
 
 ### Security Configuration
 - IAM Authentication: `--no-allow-unauthenticated`
@@ -124,3 +143,39 @@ make install-dev
 - Sports (fitness trackers, yoga mats, bikes)
 - Kitchen (pans, coffee makers, blenders)
 - Accessories (phone cases, chargers, cables)
+
+## Architecture
+
+```
+                    ┌─────────────────────┐
+                    │   Cloud Run (MCP)   │
+                    │   mcp-server-sa     │
+                    └──────────┬──────────┘
+                               │
+          ┌────────────────────┼────────────────────┐
+          │                    │                    │
+          ▼                    ▼                    ▼
+┌─────────────────┐  ┌─────────────────┐  ┌─────────────────┐
+│   Cloud SQL     │  │ Secret Manager  │  │  AI Platform    │
+│   PostgreSQL    │  │  database-url   │  │ Gemini Embed    │
+│   + pgvector    │  │  google-api-key │  │  (via ADC)      │
+└─────────────────┘  └─────────────────┘  └─────────────────┘
+```
+
+## Quick Commands
+
+```bash
+# Deploy
+gcloud builds submit --config=cloudbuild.yaml
+
+# Health check
+curl -H "Authorization: Bearer $(gcloud auth print-identity-token)" \
+    "$(gcloud run services describe mcp-server --region=us-central1 --format='value(status.url)')/health"
+
+# View logs
+gcloud run services logs read mcp-server --region=us-central1
+
+# Local development
+make install-dev
+python server.py
+```
