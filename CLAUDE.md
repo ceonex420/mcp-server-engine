@@ -16,6 +16,8 @@
 - Reorganización: tool_registry.py y tool_discovery_validator.py movidos a utils/
 - Agregar banner a MCP
 - MCP funcionando
+- UV package manager (10-100x faster than pip) - migración completa
+- 45 productos de prueba cargados en test.products con embeddings
 
 ## Cloud Run Deployment (Dec 2025)
 
@@ -86,3 +88,39 @@ gcloud run deploy mcp-server \
 - Mypy: Type checking with --ignore-missing-imports
 - Bandit: Security scan (B104, B608 are expected for Cloud Run)
 - Radon: Average complexity A (3.33)
+
+## UV Package Manager Migration (Dec 2025)
+
+### Files Updated
+- `Dockerfile`: Uses `uv pip install` with `UV_SYSTEM_PYTHON=1`
+- `deploy/Dockerfile.cloudrun`: UV for fast builds
+- `cloudbuild.yaml`: UV for quality checks and builds
+- `Makefile`: New targets `install-uv`, `install`, `install-dev`
+- `README.md`: Installation instructions with uv (pip as fallback)
+- `requirements.txt`: Updated comments
+
+### Usage
+```bash
+# Install uv (first time)
+make install-uv
+
+# Install dependencies
+make install
+
+# Install dev dependencies
+make install-dev
+```
+
+## Sample Products Data
+
+### Script
+- `scripts/load_sample_products.py`: Loads products with Gemini embeddings
+
+### Categories (45 products total)
+- Computing (laptops, keyboards, mice, monitors)
+- Home (vacuums, lights, air purifiers, thermostats)
+- Audio (headphones, speakers, earbuds)
+- Office (chairs, desks, monitors)
+- Sports (fitness trackers, yoga mats, bikes)
+- Kitchen (pans, coffee makers, blenders)
+- Accessories (phone cases, chargers, cables)
