@@ -38,7 +38,17 @@ CREATE SCHEMA IF NOT EXISTS :schema_name;
 -- Step 3: Create normalize_text Function
 -- ============================================================================
 -- Converts text to lowercase and removes accents for fuzzy search
+-- Created in BOTH public schema (for unqualified calls) and target schema
 
+-- Public schema version (called without schema prefix)
+CREATE OR REPLACE FUNCTION public.normalize_text(input_text TEXT)
+RETURNS TEXT AS $$
+BEGIN
+    RETURN LOWER(unaccent(COALESCE(input_text, '')));
+END;
+$$ LANGUAGE plpgsql IMMUTABLE;
+
+-- Target schema version
 CREATE OR REPLACE FUNCTION :schema_name.normalize_text(input_text TEXT)
 RETURNS TEXT AS $$
 BEGIN
@@ -46,6 +56,8 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql IMMUTABLE;
 
+COMMENT ON FUNCTION public.normalize_text(TEXT) IS
+    'Normalizes text for fuzzy search: lowercase + unaccent';
 COMMENT ON FUNCTION :schema_name.normalize_text(TEXT) IS
     'Normalizes text for fuzzy search: lowercase + unaccent';
 
