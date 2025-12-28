@@ -59,6 +59,18 @@ shell: ## Open shell in running container
 	docker compose exec mcp /bin/bash
 
 # ============================================================================
+# Installation (using uv - 10-100x faster than pip)
+# ============================================================================
+install-uv: ## Install uv package manager
+	curl -LsSf https://astral.sh/uv/install.sh | sh
+
+install: ## Install dependencies with uv
+	uv pip install --system -r requirements.txt
+
+install-dev: ## Install dev dependencies with uv
+	uv pip install --system -r requirements.txt ruff pytest mypy bandit
+
+# ============================================================================
 # Development
 # ============================================================================
 lint: ## Run ruff linter

@@ -267,8 +267,10 @@ cd Lab01-MCP/mcp_server
 python3.10 -m venv venv
 source venv/bin/activate  # On Windows: venv\Scripts\activate
 
-# 3. Install dependencies
-pip install -r requirements.txt
+# 3. Install uv and dependencies
+curl -LsSf https://astral.sh/uv/install.sh | sh
+source ~/.local/bin/env  # Add uv to PATH
+uv pip install --system -r requirements.txt
 
 # 4. Configure environment
 cp .env.example .env
@@ -302,19 +304,22 @@ venv\Scripts\Activate.ps1
 
 #### 2. Install Dependencies
 
-**Option A: Using pip (Recommended)**
+**Using uv (Recommended - 10-100x faster than pip)**
 ```bash
-pip install --upgrade pip
-pip install -r requirements.txt
+# Install uv
+curl -LsSf https://astral.sh/uv/install.sh | sh
+source ~/.local/bin/env
+
+# Install dependencies
+uv pip install --system -r requirements.txt
+
+# Or with development tools
+uv pip install --system -r requirements.txt ruff pytest mypy
 ```
 
-**Option B: Using pyproject.toml**
+**Alternative: Using pip**
 ```bash
-# Production only
-pip install -e .
-
-# With development tools (ruff, pytest, mypy)
-pip install -e .[dev]
+pip install -r requirements.txt
 ```
 
 #### 3. Database Setup
@@ -1427,11 +1432,14 @@ nano .env  # Add: GOOGLE_API_KEY="your-new-key"
 # Ensure virtual environment is activated
 which python  # Should point to venv/bin/python
 
-# Reinstall dependencies
+# Reinstall dependencies with uv
+uv pip install --system -r requirements.txt --reinstall
+
+# Or with pip
 pip install -r requirements.txt --force-reinstall
 
 # Verify installation
-pip list | grep mcp
+uv pip list | grep mcp
 ```
 
 ---
