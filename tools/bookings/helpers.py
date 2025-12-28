@@ -94,7 +94,9 @@ async def create_booking_atomic_async(
                 FOR UPDATE
             """
 
-            locked_rows = await conn.fetch(lock_query, date_obj, end_time_dt.time(), booking_dt.time())
+            locked_rows = await conn.fetch(
+                lock_query, date_obj, end_time_dt.time(), booking_dt.time()
+            )
             logger.debug(f"Locked {len(locked_rows)} overlapping appointments")
 
             # Recheck availability
@@ -103,7 +105,10 @@ async def create_booking_atomic_async(
             """
             availability_result = await conn.fetchrow(
                 availability_check_query,
-                date_obj, time_obj, duration_minutes, service_type,
+                date_obj,
+                time_obj,
+                duration_minutes,
+                service_type,
             )
             is_available = availability_result["available"] if availability_result else False
 

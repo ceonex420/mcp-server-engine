@@ -191,7 +191,9 @@ def register_tools() -> None:
             openWorldHint=True,  # Results may vary with embedding model
         )
     )
-    async def search_products(ctx: Context, query: str, limit: int = 20, offset: int = 0) -> dict[str, Any]:
+    async def search_products(
+        ctx: Context, query: str, limit: int = 20, offset: int = 0
+    ) -> dict[str, Any]:
         """
         Search products using semantic/conceptual search with AI embeddings (Gemini).
 
@@ -246,7 +248,13 @@ def register_tools() -> None:
                     session_key = ctx.request_id or "anonymous"
                     if not search_limiter.check(session_key):
                         await ctx.warning("Search rate limit exceeded")
-                        return {"items": [], "count": 0, "total_count": 0, "query": query, "rate_limited": True}
+                        return {
+                            "items": [],
+                            "count": 0,
+                            "total_count": 0,
+                            "query": query,
+                            "rate_limited": True,
+                        }
 
                     # Progress reporting for semantic search (can be slow ~490ms)
                     await ctx.report_progress(progress=0.1, total=1.0)
@@ -264,7 +272,13 @@ def register_tools() -> None:
                     return result
             except ConcurrencyLimitExceeded:
                 await ctx.warning("Server at capacity, too many concurrent requests")
-                return {"items": [], "count": 0, "total_count": 0, "query": query, "concurrency_limited": True}
+                return {
+                    "items": [],
+                    "count": 0,
+                    "total_count": 0,
+                    "query": query,
+                    "concurrency_limited": True,
+                }
         except Exception as e:
             await ctx.error(f"Error in search_products: {e!s}")
             raise
@@ -441,7 +455,9 @@ def register_tools() -> None:
                         await ctx.info("Trying semantic fallback search")
                         await ctx.report_progress(progress=0.8, total=1.0)
                         try:
-                            semantic_result = await search_products_async(query, limit=limit, offset=offset)
+                            semantic_result = await search_products_async(
+                                query, limit=limit, offset=offset
+                            )
                             semantic_items = semantic_result.get("items", [])
                             if semantic_items:
                                 for r in semantic_items:
@@ -459,7 +475,9 @@ def register_tools() -> None:
                     if items and len(items) > 0:
                         tier = items[0].get("search_tier", "unknown")
                         max_sim = items[0].get("max_similarity", "N/A")
-                        await ctx.info(f"Search completed: {len(items)} products, tier={tier}, max_similarity={max_sim}")
+                        await ctx.info(
+                            f"Search completed: {len(items)} products, tier={tier}, max_similarity={max_sim}"
+                        )
                     else:
                         await ctx.info("Search completed: no matches found")
 
@@ -489,6 +507,4 @@ def register_tools() -> None:
     ]
     pageable_tool_registry.register_tools(pageable_tools, "pageable")
 
-    logger.info(
-        f"Registered {len(sales_tools)} sales tools + {len(pageable_tools)} pageable tools"
-    )
+    logger.info(f"Registered {len(sales_tools)} sales tools + {len(pageable_tools)} pageable tools")

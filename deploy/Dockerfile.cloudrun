@@ -1,0 +1,111 @@
+# =============================================================================
+# Dockerfile for Cloud Run Deployment - Odiseo MCP Server
+# =============================================================================
+# Multi-stage build optimized for Google Cloud Run.
+#
+# Best Practices Applied:
+#   - Multi-stage build for minimal image size
+#   - UV package manager for fast dependency installation
+#   - Non-root user for security
+#   - Pinned base image versions
+#   - Health check endpoint
+#   - Proper signal handling with tini
+#   - Cloud Run port configuration
+#
+# Build: docker build -f deploy/Dockerfile.cloudrun -t mcp-server .
+# Test:  docker run -p 8080:8080 -e PORT=8080 mcp-server
+# =============================================================================
+
+# -----------------------------------------------------------------------------
+# Stage 1: Builder
+# -----------------------------------------------------------------------------
+FROM python:3.12-slim-bookworm AS builder
+
+WORKDIR /build
+
+# Install build dependencies and UV (ultrafast package manager)
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential \
+    curl \
+    libpq-dev \
+    && curl -LsSf https://astral.sh/uv/install.sh | sh \
+    && rm -rf /var/lib/apt/lists/*
+
+# Add UV to PATH
+ENV PATH="/root/.local/bin:$PATH"
+
+# Copy requirements first for better cache utilization
+COPY requirements.txt .
+
+# Install Python dependencies using UV (much faster than pip)
+RUN uv pip install --system --no-cache -r requirements.txt
+
+# -----------------------------------------------------------------------------
+# Stage 2: Runtime
+# -----------------------------------------------------------------------------
+FROM python:3.12-slim-bookworm
+
+# Metadata
+LABEL maintainer="Odiseo Team <dev@nexusintelligent.ai>" \
+      org.opencontainers.image.source="https://github.com/javierjortiz82/mcp-server" \
+      org.opencontainers.image.description="Odiseo MCP Server - AI-Powered Product Search, Booking & OTP" \
+      org.opencontainers.image.version="1.5.0"
+
+WORKDIR /app
+
+# Install runtime dependencies only
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    curl \
+    ca-certificates \
+    tini \
+    libpq5 \
+    && rm -rf /var/lib/apt/lists/* \
+    && apt-get clean \
+    && rm -rf /var/cache/apt/archives/*
+
+# Copy Python packages from builder
+COPY --from=builder /usr/local/lib/python3.12/site-packages /usr/local/lib/python3.12/site-packages
+COPY --from=builder /usr/local/bin /usr/local/bin
+
+# Create non-root user
+RUN groupadd -r -g 1000 appgroup && \
+    useradd -r -u 1000 -g appgroup -s /sbin/nologin appuser && \
+    mkdir -p /app/logs && \
+    chown -R appuser:appgroup /app
+
+# Copy application code
+COPY --chown=appuser:appgroup server.py /app/
+COPY --chown=appuser:appgroup config /app/config
+COPY --chown=appuser:appgroup mcp_handlers /app/mcp_handlers
+COPY --chown=appuser:appgroup tools /app/tools
+COPY --chown=appuser:appgroup utils /app/utils
+
+# Environment variables
+ENV PYTHONPATH=/app \
+    PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONFAULTHANDLER=1 \
+    # Cloud Run injects PORT automatically (usually 8080)
+    PORT=8080 \
+    MCP_PORT=8080 \
+    # Uvicorn settings
+    UVICORN_WORKERS=1 \
+    UVICORN_TIMEOUT=300 \
+    # Disable debug in production
+    DEBUG_MODE=false
+
+# Switch to non-root user
+USER appuser
+
+# Expose port (documentation)
+EXPOSE 8080
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=10s --retries=3 --start-period=15s \
+    CMD curl -sf http://localhost:${PORT}/health || exit 1
+
+# Use tini as init system for proper signal handling
+ENTRYPOINT ["/usr/bin/tini", "--"]
+
+# Run MCP server (Cloud Run handles scaling)
+CMD ["python", "server.py"]

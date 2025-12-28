@@ -59,7 +59,9 @@ async def search_products_async(
     params = PaginationParams.for_search(limit=limit, offset=offset)
     logger.info(
         "Starting vector search for query: '%s' (limit=%d, offset=%d)",
-        query, params.limit, params.offset
+        query,
+        params.limit,
+        params.offset,
     )
 
     vectors = emb_client.embed([query])
@@ -75,7 +77,9 @@ async def search_products_async(
     validate_schema_name(settings.SCHEMA_NAME)
 
     # First get total count of products with embeddings
-    count_sql = f"SELECT COUNT(*) as total FROM {settings.SCHEMA_NAME}.products WHERE embedding IS NOT NULL"
+    count_sql = (
+        f"SELECT COUNT(*) as total FROM {settings.SCHEMA_NAME}.products WHERE embedding IS NOT NULL"
+    )
 
     # asyncpg uses $1, $2, etc. for parameters
     sql = (

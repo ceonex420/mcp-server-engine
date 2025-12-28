@@ -5,6 +5,7 @@ Uses official protocol version, capabilities, and types from mcp.types module.
 """
 
 from mcp.server.fastmcp import FastMCP
+from mcp.server.transport_security import TransportSecuritySettings
 from mcp.types import DEFAULT_NEGOTIATED_VERSION, LATEST_PROTOCOL_VERSION
 
 from config import settings
@@ -26,6 +27,13 @@ cleanup_banner_flag()
 logger = setup_logging("mcp_server", settings=settings)
 
 # Create MCP server with official configuration
+# Transport security for Cloud Run deployment
+# DNS rebinding protection is disabled because Cloud Run provides IAM authentication
+# which is a stronger security layer than host header validation
+transport_security = TransportSecuritySettings(
+    enable_dns_rebinding_protection=False,
+)
+
 mcp = FastMCP(
     name="Odiseo MCP Server",
     instructions=(
@@ -37,6 +45,7 @@ mcp = FastMCP(
     debug=settings.DEBUG_MODE,  # Configurable via DEBUG_MODE env var
     log_level=settings.LOG_LEVEL,
     stateless_http=True,  # Enable stateless HTTP for proper remote client support
+    transport_security=transport_security,  # DNS rebinding protection for Cloud Run
 )
 
 # Initialize handlers with MCP instance

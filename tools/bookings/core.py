@@ -89,13 +89,14 @@ async def create_booking_async(
 
         availability_check = await fetchone_async(
             f"SELECT {settings.SCHEMA_NAME}.is_slot_available($1, $2, $3, $4) as available",
-            date_obj, time_obj, duration_minutes, service_type,
+            date_obj,
+            time_obj,
+            duration_minutes,
+            service_type,
         )
 
         if not availability_check or not availability_check["available"]:
-            raise ValueError(
-                f"Time slot {booking_date} at {booking_time} is not available"
-            )
+            raise ValueError(f"Time slot {booking_date} at {booking_time} is not available")
 
         logger.debug("Availability check passed")
 
@@ -232,7 +233,9 @@ async def cancel_booking_async(
 
         result = await fetchone_async(
             update_sql,
-            BookingStatus.CANCELLED.value, cancellation_reason, booking_id,
+            BookingStatus.CANCELLED.value,
+            cancellation_reason,
+            booking_id,
         )
 
         if not result:
@@ -318,7 +321,10 @@ async def reschedule_booking_async(
 
         availability_check = await fetchone_async(
             f"SELECT {settings.SCHEMA_NAME}.is_slot_available($1, $2, $3, $4) as available",
-            new_date_obj, new_time_obj, booking["duration_minutes"], booking["service_type"],
+            new_date_obj,
+            new_time_obj,
+            booking["duration_minutes"],
+            booking["service_type"],
         )
 
         if not availability_check or not availability_check["available"]:
@@ -366,7 +372,11 @@ async def reschedule_booking_async(
 
         result = await fetchone_async(
             update_sql,
-            new_date_obj, new_time_obj, BookingStatus.RESCHEDULED.value, calendar_link, booking_id,
+            new_date_obj,
+            new_time_obj,
+            BookingStatus.RESCHEDULED.value,
+            calendar_link,
+            booking_id,
         )
 
         if not result:

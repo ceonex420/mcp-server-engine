@@ -239,12 +239,17 @@ def register_booking_tools() -> None:
                     session_key = ctx.request_id or "anonymous"
                     if not booking_limiter.check(session_key):
                         await ctx.warning("Booking rate limit exceeded")
-                        return {"error": "rate_limited", "message": "Too many booking requests. Please wait."}
+                        return {
+                            "error": "rate_limited",
+                            "message": "Too many booking requests. Please wait.",
+                        }
 
                     await ctx.info(f"Creating booking for {customer_name}")
                     await ctx.report_progress(progress=0.1, total=1.0)
 
-                    await ctx.debug(f"Service: {service_type}, Date: {booking_date}, Time: {booking_time}")
+                    await ctx.debug(
+                        f"Service: {service_type}, Date: {booking_date}, Time: {booking_time}"
+                    )
                     await ctx.report_progress(progress=0.2, total=1.0)
 
                     await ctx.info("Validating booking data")
@@ -354,7 +359,10 @@ def register_booking_tools() -> None:
                     session_key = ctx.request_id or "anonymous"
                     if not booking_limiter.check(session_key):
                         await ctx.warning("Booking rate limit exceeded")
-                        return {"error": "rate_limited", "message": "Too many requests. Please wait."}
+                        return {
+                            "error": "rate_limited",
+                            "message": "Too many requests. Please wait.",
+                        }
 
                     await ctx.info(f"Cancelling booking ID={booking_id}")
                     await ctx.report_progress(progress=0.3, total=1.0)
@@ -451,7 +459,10 @@ def register_booking_tools() -> None:
                     session_key = ctx.request_id or "anonymous"
                     if not booking_limiter.check(session_key):
                         await ctx.warning("Booking rate limit exceeded")
-                        return {"error": "rate_limited", "message": "Too many requests. Please wait."}
+                        return {
+                            "error": "rate_limited",
+                            "message": "Too many requests. Please wait.",
+                        }
 
                     await ctx.info(f"Rescheduling booking ID={booking_id} to {new_date} {new_time}")
                     await ctx.report_progress(progress=0.2, total=1.0)
@@ -465,7 +476,9 @@ def register_booking_tools() -> None:
                     # Check if booking is in a valid state for rescheduling
                     current_status = booking.get("status")
                     if current_status in ("cancelled", "completed", "no_show"):
-                        raise ValueError(f"Cannot reschedule {current_status} booking (ID: {booking_id})")
+                        raise ValueError(
+                            f"Cannot reschedule {current_status} booking (ID: {booking_id})"
+                        )
 
                     await ctx.report_progress(progress=0.5, total=1.0)
 

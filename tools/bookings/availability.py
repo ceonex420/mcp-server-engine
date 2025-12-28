@@ -9,7 +9,7 @@ Version: 2.0.0
 
 from __future__ import annotations
 
-from datetime import date as date_type, datetime, time as time_type, timedelta
+from datetime import datetime, timedelta
 from typing import Any
 from zoneinfo import ZoneInfo
 
@@ -119,17 +119,17 @@ async def get_available_slots_async(
 
         # Check if slot is available
         try:
-            query = (
-                f"SELECT {settings.SCHEMA_NAME}.is_slot_available"
-                f"($1, $2, $3, $4) as available"
-            )
+            query = f"SELECT {settings.SCHEMA_NAME}.is_slot_available($1, $2, $3, $4) as available"
             # Convert to Python date/time objects for asyncpg
             date_obj = dt.date()
             time_obj = current_time.time()
 
             availability = await fetchone_async(
                 query,
-                date_obj, time_obj, duration_minutes, service_type,
+                date_obj,
+                time_obj,
+                duration_minutes,
+                service_type,
             )
 
             is_available = availability["available"] if availability else False

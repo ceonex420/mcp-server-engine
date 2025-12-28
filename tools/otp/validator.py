@@ -25,7 +25,7 @@ from typing import Any
 
 from config.settings import settings
 from tools.otp.generator import OTPGenerator
-from tools.otp.storage import OTPRecord, OTPStorage, get_otp_storage
+from tools.otp.storage import OTPStorage, get_otp_storage
 from utils.logger import get_logger
 
 # Module logger

@@ -42,6 +42,7 @@ T = TypeVar("T")
 # CONFIGURATION CONSTANTS
 # =============================================================================
 
+
 class PaginationDefaults:
     """Default pagination configuration values."""
 
@@ -62,6 +63,7 @@ class PaginationDefaults:
 # =============================================================================
 # DATA TRANSFER OBJECTS (DTOs)
 # =============================================================================
+
 
 @dataclass(frozen=True)
 class PaginationParams:
@@ -90,10 +92,7 @@ class PaginationParams:
         Returns:
             New PaginationParams with validated values.
         """
-        validated_limit = max(
-            PaginationDefaults.MIN_LIMIT,
-            min(self.limit, self.max_limit)
-        )
+        validated_limit = max(PaginationDefaults.MIN_LIMIT, min(self.limit, self.max_limit))
         validated_offset = max(PaginationDefaults.MIN_OFFSET, self.offset)
 
         if validated_limit != self.limit or validated_offset != self.offset:
@@ -103,32 +102,36 @@ class PaginationParams:
             )
 
         return PaginationParams(
-            limit=validated_limit,
-            offset=validated_offset,
-            max_limit=self.max_limit
+            limit=validated_limit, offset=validated_offset, max_limit=self.max_limit
         )
 
     @classmethod
-    def for_search(cls, limit: int = PaginationDefaults.SEARCH_LIMIT, offset: int = 0) -> PaginationParams:
+    def for_search(
+        cls, limit: int = PaginationDefaults.SEARCH_LIMIT, offset: int = 0
+    ) -> PaginationParams:
         """Factory method for search operations."""
         return cls(limit=limit, offset=offset, max_limit=PaginationDefaults.MAX_LIMIT).validate()
 
     @classmethod
-    def for_list(cls, limit: int = PaginationDefaults.LIST_LIMIT, offset: int = 0) -> PaginationParams:
+    def for_list(
+        cls, limit: int = PaginationDefaults.LIST_LIMIT, offset: int = 0
+    ) -> PaginationParams:
         """Factory method for list operations."""
         return cls(limit=limit, offset=offset, max_limit=PaginationDefaults.MAX_LIMIT).validate()
 
     @classmethod
-    def for_export(cls, limit: int = PaginationDefaults.EXPORT_LIMIT, offset: int = 0) -> PaginationParams:
+    def for_export(
+        cls, limit: int = PaginationDefaults.EXPORT_LIMIT, offset: int = 0
+    ) -> PaginationParams:
         """Factory method for export operations (higher limits)."""
-        return cls(limit=limit, offset=offset, max_limit=PaginationDefaults.ABSOLUTE_MAX_LIMIT).validate()
+        return cls(
+            limit=limit, offset=offset, max_limit=PaginationDefaults.ABSOLUTE_MAX_LIMIT
+        ).validate()
 
     def next_page(self) -> PaginationParams:
         """Get parameters for next page."""
         return PaginationParams(
-            limit=self.limit,
-            offset=self.offset + self.limit,
-            max_limit=self.max_limit
+            limit=self.limit, offset=self.offset + self.limit, max_limit=self.max_limit
         )
 
     def prev_page(self) -> PaginationParams | None:
@@ -136,9 +139,7 @@ class PaginationParams:
         if self.offset <= 0:
             return None
         return PaginationParams(
-            limit=self.limit,
-            offset=max(0, self.offset - self.limit),
-            max_limit=self.max_limit
+            limit=self.limit, offset=max(0, self.offset - self.limit), max_limit=self.max_limit
         )
 
 
@@ -176,7 +177,9 @@ class PaginationMeta:
 
         # Calculate page numbers (1-indexed for display)
         current_page = (params.offset // params.limit) + 1 if params.limit > 0 else 1
-        total_pages = ((total_count - 1) // params.limit) + 1 if params.limit > 0 and total_count > 0 else 1
+        total_pages = (
+            ((total_count - 1) // params.limit) + 1 if params.limit > 0 and total_count > 0 else 1
+        )
 
         return cls(
             limit=params.limit,
@@ -253,9 +256,7 @@ class PaginatedResponse(Generic[T]):
             PaginatedResponse with calculated metadata.
         """
         pagination_meta = PaginationMeta.create(
-            params=params,
-            total_count=total_count,
-            items_count=len(items)
+            params=params, total_count=total_count, items_count=len(items)
         )
 
         return cls(

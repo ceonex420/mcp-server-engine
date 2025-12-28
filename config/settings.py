@@ -53,9 +53,14 @@ class Settings(BaseSettings):
     # ============================================================================
     # Google GenAI Configuration
     # ============================================================================
+    USE_ADC: bool = Field(
+        default=False,
+        description="Use Application Default Credentials for Gemini API (recommended for Cloud Run)",
+    )
+
     GOOGLE_API_KEY: str = Field(
-        ...,  # Required field
-        description="Google API key for Gemini AI embeddings",
+        default="",
+        description="Google API key for Gemini AI embeddings (not required when USE_ADC=true)",
     )
 
     EMBEDDING_MODEL: str = Field(
@@ -365,10 +370,9 @@ class Settings(BaseSettings):
     @field_validator("GOOGLE_API_KEY")
     @classmethod
     def validate_google_api_key(cls, v: str) -> str:
-        """Validate GOOGLE_API_KEY is not empty."""
-        if not v or v.strip() == "":
-            raise ValueError("GOOGLE_API_KEY cannot be empty")
-        return v.strip()
+        """Validate GOOGLE_API_KEY format (allow empty when USE_ADC=true)."""
+        # Allow empty string - validation with USE_ADC happens in model_validator
+        return v.strip() if v else ""
 
     @field_validator("OTP_HASH_ALGORITHM")
     @classmethod
@@ -392,6 +396,13 @@ class Settings(BaseSettings):
         Raises:
             ValueError: If configuration conflicts are detected
         """
+        # Authentication: Either USE_ADC or GOOGLE_API_KEY must be configured
+        if not self.USE_ADC and not self.GOOGLE_API_KEY:
+            raise ValueError(
+                "Authentication not configured. Set USE_ADC=true for Cloud Run "
+                "or provide GOOGLE_API_KEY for local development."
+            )
+
         # Booking configuration: Duration must be >= Interval
         if self.BOOKING_DEFAULT_DURATION_MINUTES < self.BOOKING_SLOT_INTERVAL_MINUTES:
             raise ValueError(

@@ -10,20 +10,20 @@ Features:
     - Context manager for easy usage
 
 Usage:
-    from utils.concurrency import acquire_slot, ConcurrencyLimitExceeded
+    from utils.concurrency import acquire_slot, ConcurrencyLimitExceededError
 
     try:
         async with acquire_slot():
             # Process request
             result = await some_operation()
-    except ConcurrencyLimitExceeded:
+    except ConcurrencyLimitExceededError:
         # Return 429 Too Many Requests
         pass
 """
 
 import asyncio
+from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
-from typing import AsyncGenerator
 
 from config import settings
 from utils.logger import get_logger
@@ -34,7 +34,7 @@ logger = get_logger(__name__)
 _concurrency_semaphore: asyncio.Semaphore | None = None
 
 
-class ConcurrencyLimitExceeded(Exception):
+class ConcurrencyLimitExceededError(Exception):
     """Raised when concurrency limit is reached and request cannot be processed."""
 
     def __init__(self, max_concurrent: int):
@@ -42,6 +42,10 @@ class ConcurrencyLimitExceeded(Exception):
         super().__init__(
             f"Service temporarily unavailable. Max concurrent requests: {max_concurrent}"
         )
+
+
+# Alias for backward compatibility
+ConcurrencyLimitExceeded = ConcurrencyLimitExceededError
 
 
 def _get_semaphore() -> asyncio.Semaphore:
@@ -108,11 +112,11 @@ async def acquire_slot(timeout: float = 0.01) -> AsyncGenerator[None, None]:
 
     try:
         await asyncio.wait_for(semaphore.acquire(), timeout=timeout)
-    except asyncio.TimeoutError:
+    except asyncio.TimeoutError as err:
         logger.warning(
             f"Concurrency limit exceeded: {settings.MAX_CONCURRENT_REQUESTS} concurrent requests"
         )
-        raise ConcurrencyLimitExceeded(settings.MAX_CONCURRENT_REQUESTS)
+        raise ConcurrencyLimitExceededError(settings.MAX_CONCURRENT_REQUESTS) from err
 
     try:
         yield

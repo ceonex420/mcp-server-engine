@@ -98,8 +98,12 @@ class EmbeddingsClient:
         Reads API key, model, and dimension configuration from settings
         and creates a Google GenAI client instance.
 
+        Authentication modes:
+        1. USE_ADC=true: Uses Application Default Credentials (recommended for Cloud Run)
+        2. GOOGLE_API_KEY: Uses API key authentication (for local development)
+
         Raises:
-            ValueError: If GOOGLE_API_KEY is not set in settings
+            ValueError: If neither USE_ADC nor GOOGLE_API_KEY is configured
         """
         logger.info(
             "Initializing embeddings client with model: %s, dimension: %d (cache_size=%d)",
@@ -107,7 +111,23 @@ class EmbeddingsClient:
             settings.EMBEDDING_DIMENSION,
             EMBEDDING_CACHE_SIZE,
         )
-        self._client = genai.Client(api_key=settings.GOOGLE_API_KEY)
+
+        # Check authentication mode
+        use_adc = getattr(settings, "USE_ADC", False)
+
+        if use_adc:
+            # Use Application Default Credentials (Cloud Run, GCE, etc.)
+            logger.info("Using Application Default Credentials (ADC) for Gemini API")
+            self._client = genai.Client(vertexai=True)
+        elif settings.GOOGLE_API_KEY:
+            # Use API key authentication (local development)
+            logger.info("Using API key authentication for Gemini API")
+            self._client = genai.Client(api_key=settings.GOOGLE_API_KEY)
+        else:
+            raise ValueError(
+                "No authentication configured. Set USE_ADC=true or provide GOOGLE_API_KEY"
+            )
+
         self._model = settings.EMBEDDING_MODEL
         self._dimension = settings.EMBEDDING_DIMENSION
 

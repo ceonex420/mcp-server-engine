@@ -1244,6 +1244,106 @@ SCHEMA_NAME=test
 
 See `../DockerConfig/docker-compose.yml` for complete setup with PostgreSQL, pgAdmin, and MCP Server.
 
+### Using Google Cloud Run (Recommended for Production)
+
+The project includes a complete Cloud Run deployment configuration with security best practices.
+
+**Features:**
+- ✅ UV package manager (faster than pip)
+- ✅ Multi-stage Docker build
+- ✅ IAM authentication (no public access)
+- ✅ Secret Manager integration
+- ✅ Orchestrator service account access
+- ✅ Automated Cloud Build pipeline
+
+**Quick Deploy:**
+```bash
+# From mcp-server directory
+gcloud builds submit --config=cloudbuild.yaml
+```
+
+**Deployment Structure:**
+```
+deploy/
+├── Dockerfile.cloudrun    # Multi-stage build with UV
+├── env.production         # Environment reference
+└── README.md             # Deployment guide
+cloudbuild.yaml           # Cloud Build (6 steps)
+```
+
+**Security Configuration:**
+- Service Account: `mcp-server-sa@gen-lang-client-0329024102.iam.gserviceaccount.com`
+- Orchestrator Access: `orchestrator-sa` has `roles/run.invoker`
+- Secrets from Secret Manager:
+  - `DATABASE_URL=database-url:latest`
+  - `GOOGLE_API_KEY=google-api-key:latest`
+
+**Cloud Build Steps:**
+1. Quality checks (ruff, mypy, bandit) with UV
+2. Docker build (multi-stage)
+3. Push to Artifact Registry
+4. Deploy to Cloud Run
+5. Grant IAM to orchestrator-sa
+6. Verify deployment health
+
+**Manual Deploy (Alternative):**
+```bash
+# Build locally
+docker build -f deploy/Dockerfile.cloudrun -t mcp-server .
+
+# Push to Artifact Registry
+docker tag mcp-server us-central1-docker.pkg.dev/gen-lang-client-0329024102/mcp-repo/mcp-server:latest
+docker push us-central1-docker.pkg.dev/gen-lang-client-0329024102/mcp-repo/mcp-server:latest
+
+# Deploy
+gcloud run deploy mcp-server \
+    --image=us-central1-docker.pkg.dev/gen-lang-client-0329024102/mcp-repo/mcp-server:latest \
+    --region=us-central1 \
+    --service-account=mcp-server-sa@gen-lang-client-0329024102.iam.gserviceaccount.com \
+    --no-allow-unauthenticated \
+    --set-secrets=DATABASE_URL=database-url:latest,GOOGLE_API_KEY=google-api-key:latest
+```
+
+**Service Integration:**
+
+Call from other Cloud Run services using `internal_service_client.py`:
+
+```python
+from internal_service_client import InternalServiceClient
+
+client = InternalServiceClient()
+
+# Search products
+result = await client.call_mcp_service(
+    tool="search_products",
+    arguments={"query": "laptop gaming", "k": 5}
+)
+
+# Generate OTP
+result = await client.call_mcp_service(
+    tool="generate_otp",
+    arguments={"email": "user@example.com"}
+)
+
+# Check health
+health = await client.get_mcp_health()
+```
+
+**Production Test Scenarios:**
+
+1. **Health Check:**
+```bash
+SERVICE_URL=$(gcloud run services describe mcp-server --region=us-central1 --format='value(status.url)')
+curl -H "Authorization: Bearer $(gcloud auth print-identity-token)" "$SERVICE_URL/health"
+```
+
+2. **View Logs:**
+```bash
+gcloud run services logs read mcp-server --region=us-central1
+```
+
+See `deploy/README.md` for complete setup instructions.
+
 ## Troubleshooting
 
 ### Common Issues

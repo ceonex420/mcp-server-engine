@@ -31,7 +31,7 @@ from datetime import datetime, timezone
 from typing import Any
 
 from config.settings import settings
-from utils.db_async import execute_async, fetchall_async, fetchone_async
+from utils.db_async import fetchall_async, fetchone_async
 from utils.logger import get_logger
 
 # Module logger
@@ -65,11 +65,7 @@ class OTPRecord:
     @property
     def is_valid(self) -> bool:
         """Check if OTP is still valid for verification."""
-        return (
-            not self.is_used
-            and not self.is_expired
-            and self.attempts < self.max_attempts
-        )
+        return not self.is_used and not self.is_expired and self.attempts < self.max_attempts
 
     @property
     def attempts_remaining(self) -> int:

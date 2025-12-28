@@ -46,9 +46,9 @@ from typing import Any
 from mcp.server.fastmcp import Context, FastMCP
 
 from config.settings import settings
-from tools.otp.generator import OTPGenerator, get_otp_generator
-from tools.otp.storage import OTPStorage, get_otp_storage
-from tools.otp.validator import OTPValidator, get_otp_validator
+from tools.otp.generator import get_otp_generator
+from tools.otp.storage import get_otp_storage
+from tools.otp.validator import get_otp_validator
 from utils.concurrency import ConcurrencyLimitExceeded, acquire_slot
 from utils.email_client import send_otp_email
 from utils.logger import get_logger
@@ -197,7 +197,7 @@ def register_otp_tools() -> None:
             # Concurrency control
             try:
                 async with acquire_slot():
-                    await ctx.info(f"Generating OTP for email verification")
+                    await ctx.info("Generating OTP for email verification")
                     await ctx.report_progress(progress=0.1, total=1.0)
 
                     # Validate email format

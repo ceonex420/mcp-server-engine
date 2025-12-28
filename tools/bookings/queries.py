@@ -116,7 +116,9 @@ async def list_customer_bookings_async(
         LIMIT $2 OFFSET $3
         """
 
-        bookings = await fetchall_async(query, customer_email, page_params.limit, page_params.offset)
+        bookings = await fetchall_async(
+            query, customer_email, page_params.limit, page_params.offset
+        )
 
         # Get current datetime for past/future filtering (timezone-aware)
         tz = ZoneInfo(settings.GOOGLE_CALENDAR_TIMEZONE)

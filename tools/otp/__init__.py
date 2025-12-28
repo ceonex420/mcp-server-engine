@@ -25,13 +25,10 @@ from tools.otp.storage import OTPStorage, get_otp_storage
 from tools.otp.validator import OTPValidator, validate_otp_code
 
 __all__ = [
-    # Generator
     "OTPGenerator",
-    "generate_otp_code",
-    # Storage
     "OTPStorage",
-    "get_otp_storage",
-    # Validator
     "OTPValidator",
+    "generate_otp_code",
+    "get_otp_storage",
     "validate_otp_code",
 ]

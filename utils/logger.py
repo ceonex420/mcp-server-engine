@@ -178,7 +178,9 @@ def print_config_summary(settings: "Settings") -> None:
     c = COLORS
 
     def _line(label: str, value: str, color: str = "cyan") -> None:
-        print(f"  {c['dim']}│{c['reset']} {label:<26} {c[color]}{value}{c['reset']}", file=sys.stderr)
+        print(
+            f"  {c['dim']}│{c['reset']} {label:<26} {c[color]}{value}{c['reset']}", file=sys.stderr
+        )
 
     def _header(icon: str, title: str, color: str) -> None:
         print(f"\n  {c[color]}{icon} {title}{c['reset']}", file=sys.stderr)

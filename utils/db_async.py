@@ -57,7 +57,11 @@ async def init_db_async(min_size: int = 1, max_size: int = 10) -> None:
             logger.info("Initializing async database connection pool...")
 
             async def init_connection(conn: asyncpg.Connection) -> None:
-                """Initialize each connection with pgvector."""
+                """Initialize each connection with pgvector.
+
+                Raises:
+                    Exception: If pgvector extension is not installed
+                """
                 await register_vector(conn)
 
             _pool = await asyncpg.create_pool(
@@ -68,7 +72,9 @@ async def init_db_async(min_size: int = 1, max_size: int = 10) -> None:
                 command_timeout=60,
             )
 
-            logger.info("Async database pool initialized successfully (min=%d, max=%d)", min_size, max_size)
+            logger.info(
+                "Async database pool initialized successfully (min=%d, max=%d)", min_size, max_size
+            )
 
         except Exception as e:
             logger.error("Failed to initialize async database pool: %s", e)

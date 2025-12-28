@@ -54,44 +54,49 @@ def register_resources() -> None:
         try:
             product = await fetch_by_sku_async(sku)
             if product:
-                return json.dumps({
-                    "success": True,
-                    "data": {
-                        "name": product.get("name", "N/A"),
-                        "sku": product.get("sku", "N/A"),
-                        "description": product.get("description", "N/A"),
-                        "category": product.get("category", "N/A"),
-                        "brand": product.get("brand", "N/A"),
-                        "price": product.get("price", "N/A"),
+                return json.dumps(
+                    {
+                        "success": True,
+                        "data": {
+                            "name": product.get("name", "N/A"),
+                            "sku": product.get("sku", "N/A"),
+                            "description": product.get("description", "N/A"),
+                            "category": product.get("category", "N/A"),
+                            "brand": product.get("brand", "N/A"),
+                            "price": product.get("price", "N/A"),
+                        },
                     }
-                })
-            return json.dumps({
-                "success": False,
-                "error": {
-                    "code": "PRODUCT_NOT_FOUND",
-                    "message": f"Product not found: {sku}"
+                )
+            return json.dumps(
+                {
+                    "success": False,
+                    "error": {"code": "PRODUCT_NOT_FOUND", "message": f"Product not found: {sku}"},
                 }
-            })
+            )
         except asyncpg.PostgresError as e:
             logger.error(f"Database error retrieving product {sku}: {e!s}")
-            return json.dumps({
-                "success": False,
-                "error": {
-                    "code": "DATABASE_ERROR",
-                    "message": f"Database error retrieving product {sku}",
-                    "details": str(e)
+            return json.dumps(
+                {
+                    "success": False,
+                    "error": {
+                        "code": "DATABASE_ERROR",
+                        "message": f"Database error retrieving product {sku}",
+                        "details": str(e),
+                    },
                 }
-            })
+            )
         except Exception as e:
             logger.error(f"Error retrieving product {sku}: {e!s}")
-            return json.dumps({
-                "success": False,
-                "error": {
-                    "code": "RETRIEVAL_ERROR",
-                    "message": f"Error retrieving product {sku}",
-                    "details": str(e)
+            return json.dumps(
+                {
+                    "success": False,
+                    "error": {
+                        "code": "RETRIEVAL_ERROR",
+                        "message": f"Error retrieving product {sku}",
+                        "details": str(e),
+                    },
                 }
-            })
+            )
 
     @mcp.resource("database://stats", mime_type="application/json")  # type: ignore[union-attr]
     async def get_database_stats() -> str:
@@ -115,53 +120,63 @@ def register_resources() -> None:
             """
             result = await fetchone_async(stats_query)
             if result:
-                return json.dumps({
-                    "success": True,
-                    "data": {
-                        "total_products": result.get("total_products", 0),
-                        "categories": result.get("categories", 0),
-                        "brands": result.get("brands", 0),
-                        "avg_price": round(float(result.get("avg_price", 0)), 2),
-                        "schema": settings.SCHEMA_NAME
+                return json.dumps(
+                    {
+                        "success": True,
+                        "data": {
+                            "total_products": result.get("total_products", 0),
+                            "categories": result.get("categories", 0),
+                            "brands": result.get("brands", 0),
+                            "avg_price": round(float(result.get("avg_price", 0)), 2),
+                            "schema": settings.SCHEMA_NAME,
+                        },
                     }
-                })
-            return json.dumps({
-                "success": False,
-                "error": {
-                    "code": "NO_DATA",
-                    "message": "Unable to retrieve database statistics"
+                )
+            return json.dumps(
+                {
+                    "success": False,
+                    "error": {
+                        "code": "NO_DATA",
+                        "message": "Unable to retrieve database statistics",
+                    },
                 }
-            })
+            )
         except ValueError as e:
             logger.error(f"Validation error in database stats: {e!s}")
-            return json.dumps({
-                "success": False,
-                "error": {
-                    "code": "VALIDATION_ERROR",
-                    "message": "Invalid schema configuration",
-                    "details": str(e)
+            return json.dumps(
+                {
+                    "success": False,
+                    "error": {
+                        "code": "VALIDATION_ERROR",
+                        "message": "Invalid schema configuration",
+                        "details": str(e),
+                    },
                 }
-            })
+            )
         except asyncpg.PostgresError as e:
             logger.error(f"Database error retrieving stats: {e!s}")
-            return json.dumps({
-                "success": False,
-                "error": {
-                    "code": "DATABASE_ERROR",
-                    "message": "Database error retrieving stats",
-                    "details": str(e)
+            return json.dumps(
+                {
+                    "success": False,
+                    "error": {
+                        "code": "DATABASE_ERROR",
+                        "message": "Database error retrieving stats",
+                        "details": str(e),
+                    },
                 }
-            })
+            )
         except Exception as e:
             logger.error(f"Error retrieving database stats: {e!s}")
-            return json.dumps({
-                "success": False,
-                "error": {
-                    "code": "STATS_ERROR",
-                    "message": "Error retrieving database stats",
-                    "details": str(e)
+            return json.dumps(
+                {
+                    "success": False,
+                    "error": {
+                        "code": "STATS_ERROR",
+                        "message": "Error retrieving database stats",
+                        "details": str(e),
+                    },
                 }
-            })
+            )
 
     @mcp.resource("tool-categories://sales", mime_type="application/json")  # type: ignore[union-attr]
     async def get_sales_tool_categories() -> str:
@@ -176,22 +191,22 @@ def register_resources() -> None:
         """
         try:
             tool_names = sales_handlers.get_sales_tool_names()
-            return json.dumps({
-                "success": True,
-                "data": {
-                    "category": "sales",
-                    "tools": tool_names,
-                    "count": len(tool_names)
+            return json.dumps(
+                {
+                    "success": True,
+                    "data": {"category": "sales", "tools": tool_names, "count": len(tool_names)},
                 }
-            })
+            )
         except Exception as e:
-            return json.dumps({
-                "success": False,
-                "error": {
-                    "code": "DISCOVERY_ERROR",
-                    "message": f"Error retrieving sales tool names: {e!s}"
+            return json.dumps(
+                {
+                    "success": False,
+                    "error": {
+                        "code": "DISCOVERY_ERROR",
+                        "message": f"Error retrieving sales tool names: {e!s}",
+                    },
                 }
-            })
+            )
 
     @mcp.resource("tool-categories://bookings", mime_type="application/json")  # type: ignore[union-attr]
     async def get_booking_tool_categories() -> str:
@@ -206,22 +221,22 @@ def register_resources() -> None:
         """
         try:
             tool_names = booking_handlers.get_booking_tool_names()
-            return json.dumps({
-                "success": True,
-                "data": {
-                    "category": "bookings",
-                    "tools": tool_names,
-                    "count": len(tool_names)
+            return json.dumps(
+                {
+                    "success": True,
+                    "data": {"category": "bookings", "tools": tool_names, "count": len(tool_names)},
                 }
-            })
+            )
         except Exception as e:
-            return json.dumps({
-                "success": False,
-                "error": {
-                    "code": "DISCOVERY_ERROR",
-                    "message": f"Error retrieving booking tool names: {e!s}"
+            return json.dumps(
+                {
+                    "success": False,
+                    "error": {
+                        "code": "DISCOVERY_ERROR",
+                        "message": f"Error retrieving booking tool names: {e!s}",
+                    },
                 }
-            })
+            )
 
     @mcp.resource("tool-categories://pageable-tools", mime_type="application/json")  # type: ignore[union-attr]
     async def get_pageable_tool_categories() -> str:
@@ -241,20 +256,24 @@ def register_resources() -> None:
         """
         try:
             tool_names = sales_handlers.get_pageable_tool_names()
-            return json.dumps({
-                "success": True,
-                "data": {
-                    "category": "pageable",
-                    "tools": tool_names,
-                    "count": len(tool_names),
-                    "description": "Tools that return pageable result lists"
+            return json.dumps(
+                {
+                    "success": True,
+                    "data": {
+                        "category": "pageable",
+                        "tools": tool_names,
+                        "count": len(tool_names),
+                        "description": "Tools that return pageable result lists",
+                    },
                 }
-            })
+            )
         except Exception as e:
-            return json.dumps({
-                "success": False,
-                "error": {
-                    "code": "DISCOVERY_ERROR",
-                    "message": f"Error retrieving pageable tool names: {e!s}"
+            return json.dumps(
+                {
+                    "success": False,
+                    "error": {
+                        "code": "DISCOVERY_ERROR",
+                        "message": f"Error retrieving pageable tool names: {e!s}",
+                    },
                 }
-            })
+            )

@@ -101,7 +101,10 @@ async def fuzzy_search_async(
     if include_similarity:
         select_fields += ", " + ", ".join(similarity_selects)
         max_similarities = ", ".join(
-            [f"similarity(normalize_text({f}), normalize_text(${i+1}))" for i, f in enumerate(fields)]
+            [
+                f"similarity(normalize_text({f}), normalize_text(${i + 1}))"
+                for i, f in enumerate(fields)
+            ]
         )
         select_fields += f", GREATEST({max_similarities}) AS max_similarity"
 
@@ -230,7 +233,7 @@ async def fuzzy_search_smart_async(
     )
 
     if results:
-        paginated_results = results[page_params.offset:page_params.offset + page_params.limit]
+        paginated_results = results[page_params.offset : page_params.offset + page_params.limit]
         logger.info("Async smart search succeeded at Tier 1 (standard similarity)")
         for result in paginated_results:
             result["search_tier"] = "standard"
@@ -258,12 +261,18 @@ async def fuzzy_search_smart_async(
         total_weight += weight
         param_idx += 1  # noqa: SIM113
 
-        word_conditions.append(f"word_similarity(${param_idx}, {field}) >= ${param_idx + len(fields) * 3}")
+        word_conditions.append(
+            f"word_similarity(${param_idx}, {field}) >= ${param_idx + len(fields) * 3}"
+        )
         word_selects.append(f"word_similarity(${param_idx}, {field}) AS {field}_word_sim")
-        weighted_components.append(f"(word_similarity(${param_idx + len(fields)}, {field}) * {weight})")
+        weighted_components.append(
+            f"(word_similarity(${param_idx + len(fields)}, {field}) * {weight})"
+        )
 
     weighted_score = f"({' + '.join(weighted_components)}) / {total_weight}"
-    max_word_similarities = ", ".join([f"word_similarity(${i+1+len(fields)*2}, {f})" for i, f in enumerate(fields)])
+    max_word_similarities = ", ".join(
+        [f"word_similarity(${i + 1 + len(fields) * 2}, {f})" for i, f in enumerate(fields)]
+    )
 
     select_fields = (
         f"{base_fields}, {', '.join(word_selects)}, "
@@ -328,7 +337,7 @@ async def fuzzy_search_smart_async(
     )
 
     if results:
-        paginated_results = results[page_params.offset:page_params.offset + page_params.limit]
+        paginated_results = results[page_params.offset : page_params.offset + page_params.limit]
         logger.info(
             "Async smart search succeeded at Tier 3: %d results with similarity >= %.2f",
             len(paginated_results),
