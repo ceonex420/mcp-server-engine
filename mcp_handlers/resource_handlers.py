@@ -54,6 +54,10 @@ def register_resources() -> None:
         try:
             product = await fetch_by_sku_async(sku)
             if product:
+                # Convert Decimal to string for JSON serialization
+                price = product.get("price", "N/A")
+                if hasattr(price, "__float__"):
+                    price = str(price)
                 return json.dumps(
                     {
                         "success": True,
@@ -63,7 +67,7 @@ def register_resources() -> None:
                             "description": product.get("description", "N/A"),
                             "category": product.get("category", "N/A"),
                             "brand": product.get("brand", "N/A"),
-                            "price": product.get("price", "N/A"),
+                            "price": price,
                         },
                     }
                 )
