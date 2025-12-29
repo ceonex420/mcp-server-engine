@@ -22,6 +22,9 @@
 - Code review exhaustivo completado (14 tools, 6 resources verificados)
 - Production test suite: 24/24 tests passing (scripts/test_production.py)
 - Fix Decimal serialization en product://sku resource
+- Booking system fully operational (migration 002 applied)
+- Tables: service_types, business_hours + appointments columns added
+- Functions: is_slot_available(), get_available_slots()
 
 ## Production Test Suite (Dec 2025)
 
@@ -36,7 +39,7 @@
 | Health Check | 1 | ✅ |
 | MCP Protocol | 3 | ✅ (initialize, tools/list, resources/list) |
 | Sales Tools | 4 | ✅ (fetch_by_sku, fetch_by_id, search, fuzzy) |
-| Booking Tools | 8 | ✅ (expected errors - no tables in test env) |
+| Booking Tools | 8 | ✅ (all tools functional after migration 002) |
 | OTP Tools | 2 | ✅ (generate_otp, verify_otp) |
 | MCP Resources | 6 | ✅ (product, database, tool-categories) |
 
@@ -64,10 +67,13 @@ deploy/
 cloudbuild.yaml            # Cloud Build configuration (6 steps)
 sql/
 ├── 000_init_extensions_and_schema.sql  # Database initialization
-└── 001_create_otp_codes.sql            # OTP table migration
+├── 001_create_otp_codes.sql            # OTP table migration
+└── 002_create_booking_tables.sql       # Booking system tables and functions
 scripts/
-├── init_cloud_sql.py      # Python database initializer
-└── load_sample_products.py # Sample product loader with embeddings
+├── init_cloud_sql.py          # Python database initializer
+├── load_sample_products.py    # Sample product loader with embeddings
+├── migrate_booking_tables.py  # Booking migration runner (asyncpg)
+└── test_production.py         # Production test suite (24 scenarios)
 ```
 
 ### Deployment Phases (deploy/README.md)
@@ -174,6 +180,36 @@ make install-dev
 - Sports (fitness trackers, yoga mats, bikes)
 - Kitchen (pans, coffee makers, blenders)
 - Accessories (phone cases, chargers, cables)
+
+## Booking System Migration (Dec 2025)
+
+### Migration Files
+- `sql/002_create_booking_tables.sql` - psql migration script
+- `scripts/migrate_booking_tables.py` - Python asyncpg migration runner
+
+### Created Objects
+| Object | Type | Description |
+|--------|------|-------------|
+| service_types | Table | Available services catalog (5 sample services) |
+| business_hours | Table | Operating hours Mon-Sat (6 entries) |
+| is_slot_available() | Function | Check if time slot is available |
+| get_available_slots() | Function | List all slots for a date |
+
+### Appointments Table Columns Added
+- `google_calendar_event_id` VARCHAR(255) - Calendar event ID
+- `google_calendar_link` VARCHAR(255) - Calendar event link
+- `cancellation_reason` TEXT - Reason for cancellation
+- `cancelled_at` TIMESTAMPTZ - Cancellation timestamp
+
+### Sample Data
+- **Services**: consultation, demo, support, training, followup
+- **Hours**: Mon-Fri 9:00-18:00 (break 13:00-14:00), Sat 10:00-14:00
+
+### Run Migration
+```bash
+# Using Python script (requires DATABASE_URL)
+python scripts/migrate_booking_tables.py
+```
 
 ## MCP Tools Inventory
 

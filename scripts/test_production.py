@@ -423,10 +423,10 @@ async def test_booking_tools(client: MCPTestClient) -> None:
     passed, details = check_booking_result(passed, details)
     client.add_result("Booking Tools", "get_business_hours", "Get schedule", passed, elapsed, details)
 
-    # Test 3: get_available_slots
+    # Test 3: get_available_slots (use service_type not service_id)
     start = time.time()
     result = await client.call_tool("get_available_slots", {
-        "service_id": 1,
+        "service_type": "consultation",
         "date": "2025-01-15"
     })
     elapsed = (time.time() - start) * 1000
@@ -434,14 +434,16 @@ async def test_booking_tools(client: MCPTestClient) -> None:
     passed, details = check_booking_result(passed, details)
     client.add_result("Booking Tools", "get_available_slots", "date=2025-01-15", passed, elapsed, details)
 
-    # Test 4: create_booking
+    # Test 4: create_booking (requires: customer_name, customer_email, customer_phone, service_type, booking_date, booking_time, notes)
     start = time.time()
     result = await client.call_tool("create_booking", {
-        "service_id": 1,
+        "service_type": "consultation",
         "customer_name": "Test User",
         "customer_email": "test@example.com",
-        "date": "2025-01-20",
-        "time": "10:00"
+        "customer_phone": "+1234567890",
+        "booking_date": "2025-01-20",
+        "booking_time": "10:00",
+        "notes": "Production test booking"
     })
     elapsed = (time.time() - start) * 1000
     passed, details = extract_tool_result(result)
