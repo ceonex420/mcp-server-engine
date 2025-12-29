@@ -278,10 +278,12 @@ class OTPValidator:
                 "message": "No pending verification code.",
             }
 
+        from datetime import datetime, timezone
+
+        expires_in = otp_record.expires_at.timestamp() - datetime.now(timezone.utc).timestamp()
         return {
             "has_pending_otp": True,
-            "expires_in_seconds": otp_record.expires_at.timestamp()
-            - __import__("datetime").datetime.now(__import__("datetime").timezone.utc).timestamp(),
+            "expires_in_seconds": expires_in,
             "attempts_remaining": otp_record.attempts_remaining,
             "can_request_new": False,
             "message": "Verification code pending.",

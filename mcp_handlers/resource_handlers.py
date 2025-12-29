@@ -18,7 +18,7 @@ import asyncpg
 from mcp.server.fastmcp import FastMCP
 
 from config import settings
-from mcp_handlers import booking_handlers, sales_handlers
+from mcp_handlers import booking_handlers, otp_handler, sales_handlers
 from tools.sales import fetch_by_sku_async
 from utils.db_async import fetchone_async
 from utils.logger import get_logger
@@ -274,6 +274,40 @@ def register_resources() -> None:
                     "error": {
                         "code": "DISCOVERY_ERROR",
                         "message": f"Error retrieving pageable tool names: {e!s}",
+                    },
+                }
+            )
+
+    @mcp.resource("tool-categories://otp", mime_type="application/json")  # type: ignore[union-attr]
+    async def get_otp_tool_categories() -> str:
+        """
+        Resource providing list of OTP tool names for dynamic filtering.
+
+        This resource enables clients to dynamically discover which tools belong
+        to the OTP category without hardcoding tool lists in client code.
+
+        Returns:
+            JSON string containing list of OTP tool names
+        """
+        try:
+            tool_names = otp_handler.get_otp_tool_names()
+            return json.dumps(
+                {
+                    "success": True,
+                    "data": {
+                        "category": "otp",
+                        "tools": tool_names,
+                        "count": len(tool_names),
+                    },
+                }
+            )
+        except Exception as e:
+            return json.dumps(
+                {
+                    "success": False,
+                    "error": {
+                        "code": "DISCOVERY_ERROR",
+                        "message": f"Error retrieving OTP tool names: {e!s}",
                     },
                 }
             )
