@@ -19,6 +19,7 @@
 - UV package manager (10-100x faster than pip) - migración completa
 - 45 productos de prueba cargados en test.products con embeddings
 - Documentación completa de despliegue en deploy/README.md (8 fases)
+- Code review exhaustivo completado (14 tools, 6 resources verificados)
 
 ## Cloud Run Deployment (Dec 2025)
 
@@ -42,7 +43,7 @@ scripts/
 ### Deployment Phases (deploy/README.md)
 1. **GCP Project Setup** - APIs, Artifact Registry
 2. **Cloud SQL Setup** - PostgreSQL 15, pgvector, user
-3. **Secret Manager Setup** - database-url, google-api-key
+3. **Secret Manager Setup** - database-url (only, GOOGLE_API_KEY uses ADC)
 4. **Service Account Config** - IAM roles (cloudsql.client, secretmanager.secretAccessor, aiplatform.user)
 5. **Database Initialization** - Extensions, schema, tables, functions
 6. **Deploy to Cloud Run** - Cloud Build or manual
@@ -143,6 +144,36 @@ make install-dev
 - Sports (fitness trackers, yoga mats, bikes)
 - Kitchen (pans, coffee makers, blenders)
 - Accessories (phone cases, chargers, cables)
+
+## MCP Tools Inventory
+
+### Sales Tools (4)
+- `fetch_by_sku` - Direct SKU lookup (readOnly, idempotent)
+- `fetch_by_id` - Direct ID lookup (readOnly, idempotent)
+- `search_products` - Semantic search with Gemini embeddings (readOnly, openWorld)
+- `fuzzy_search_smart` - Fuzzy text search with pg_trgm (readOnly, idempotent)
+
+### Booking Tools (8)
+- `create_booking` - Create new reservations with Google Calendar
+- `cancel_booking` - Cancel existing bookings
+- `reschedule_booking` - Change booking date/time
+- `get_available_slots` - Check availability for date
+- `get_booking_by_id` - Get booking details
+- `list_customer_bookings` - Customer booking history
+- `get_services` - Available services catalog
+- `get_business_hours` - Operating hours
+
+### OTP Tools (2)
+- `generate_otp` - Generate and send OTP via email (rate limited)
+- `verify_otp` - Verify OTP code (timing-safe comparison)
+
+### MCP Resources (6)
+- `product://sku/{sku}` - Product access by SKU
+- `database://stats` - Database statistics
+- `tool-categories://sales` - Sales tools discovery
+- `tool-categories://bookings` - Booking tools discovery
+- `tool-categories://pageable-tools` - Pageable tools discovery
+- `tool-categories://otp` - OTP tools discovery
 
 ## Architecture
 
