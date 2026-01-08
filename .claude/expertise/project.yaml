@@ -1,0 +1,176 @@
+# Odiseo MCP Server - Project Expertise
+# Last updated: 2025-01-07
+# This file captures learned patterns, preferences, and project knowledge
+
+project:
+  name: Odiseo MCP Server
+  version: "1.25.0"
+  type: MCP (Model Context Protocol) Server
+  status: Production
+  url: https://mcp-server-4k3haexkga-uc.a.run.app
+
+stack:
+  language: Python 3.11+
+  framework: FastMCP
+  package_manager: UV (10-100x faster than pip)
+  database: PostgreSQL 15 + pgvector
+  embeddings: Gemini via Vertex AI (ADC)
+  deployment: Google Cloud Run
+  ci_cd: Cloud Build
+
+architecture:
+  pattern: MCP Tool Provider (pure tools, no agent prompts)
+  transport: streamable-http (stateless_http=True)
+  authentication: IAM (--no-allow-unauthenticated)
+  service_account: mcp-server-sa@gen-lang-client-0329024102.iam.gserviceaccount.com
+  secrets:
+    - database-url (Secret Manager)
+    # GOOGLE_API_KEY not needed - USE_ADC=true
+
+tools:
+  sales:
+    - fetch_by_sku: Direct SKU lookup (readOnly, idempotent)
+    - fetch_by_id: Direct ID lookup (readOnly, idempotent)
+    - search_products: Semantic search with Gemini embeddings (readOnly, openWorld)
+    - fuzzy_search_smart: Fuzzy text search with pg_trgm (readOnly, idempotent)
+  booking:
+    - create_booking: Create reservations with Google Calendar
+    - cancel_booking: Cancel bookings
+    - reschedule_booking: Change booking date/time
+    - get_available_slots: Check availability
+    - get_booking_by_id: Get booking details
+    - list_customer_bookings: Customer history
+    - get_services: Services catalog
+    - get_business_hours: Operating hours
+  otp:
+    - generate_otp: Generate and send OTP (rate limited)
+    - verify_otp: Verify OTP code (timing-safe)
+
+resources:
+  - product://sku/{sku}
+  - database://stats
+  - tool-categories://sales
+  - tool-categories://bookings
+  - tool-categories://pageable-tools
+  - tool-categories://otp
+
+database:
+  schema: test
+  extensions:
+    - pgvector
+    - pg_trgm
+    - unaccent
+  tables:
+    - products (45 sample products with embeddings)
+    - otp_codes
+    - appointments
+    - service_types
+    - business_hours
+  functions:
+    - is_slot_available()
+    - get_available_slots()
+    - fuzzy_search_smart()
+
+patterns:
+  mcp_context:
+    description: Use MCP Context for logging and progress
+    methods:
+      - ctx.report_progress()
+      - ctx.info()
+      - ctx.debug()
+      - ctx.warning()
+      - ctx.error()
+
+  tool_annotations:
+    description: Use ToolAnnotations for tool metadata
+    hints:
+      - readOnlyHint
+      - idempotentHint
+      - openWorldHint
+
+  async_resources:
+    description: Resources must be async with MIME types
+    format: JSON with structured error responses
+
+  embedding_cache:
+    description: LRU cache for embeddings
+    size: 1000 entries
+
+  rate_limiting:
+    description: Rate limiting for OTP and searches
+    location: utils/rate_limiter.py
+
+  decimal_serialization:
+    description: Decimal must be converted to float for JSON
+    fix: float(value) before serialization
+
+conventions:
+  language: English (all docstrings, messages, comments)
+  i18n: Disabled (LLM handles localization via prompts)
+  file_structure:
+    tools: tools/sales/, tools/booking/, tools/otp/
+    handlers: handlers/sales_handlers.py, handlers/booking_handlers.py
+    utils: utils/rate_limiter.py, utils/tool_registry.py
+
+  no_duplicates: Never create copies like model_simple.py, use original
+
+commands:
+  deploy: gcloud builds submit --config=cloudbuild.yaml
+  health_check: |
+    curl -H "Authorization: Bearer $(gcloud auth print-identity-token)" \
+      "$(gcloud run services describe mcp-server --region=us-central1 --format='value(status.url)')/health"
+  logs: gcloud run services logs read mcp-server --region=us-central1
+  test_production: python scripts/test_production.py
+  install_dev: make install-dev
+  local_run: python server.py
+
+migrations:
+  - 000_init_extensions_and_schema.sql
+  - 001_create_otp_codes.sql
+  - 002_create_booking_tables.sql
+
+quality:
+  ruff: All checks passing
+  mypy: Type checking enabled
+  bandit: Security scan (B104, B608 expected for Cloud Run)
+  radon: Average complexity A (3.33)
+  tests: 24/24 passing (scripts/test_production.py)
+
+lessons_learned:
+  - name: stateless_http
+    context: FastMCP configuration
+    solution: Added stateless_http=True for Cloud Run compatibility
+
+  - name: decimal_json
+    context: Product resource returning price
+    solution: Convert Decimal to float before JSON serialization
+
+  - name: adc_for_embeddings
+    context: Gemini API access
+    solution: USE_ADC=true eliminates need for GOOGLE_API_KEY secret
+
+  - name: sse_response_parsing
+    context: Production test suite
+    solution: Parse SSE format with JSON-RPC notifications filtering
+
+  - name: unaccent_search
+    context: Spanish/accented text search
+    solution: Use unaccent extension with pg_trgm for fuzzy matching
+
+  - name: booking_migration
+    context: Adding booking system
+    solution: asyncpg for Python migrations, psql for SQL scripts
+
+integration:
+  orchestrator_sa: Has roles/run.invoker for service-to-service calls
+  internal_client: /home/javort/shared-libs/internal_service_client.py
+  methods:
+    - call_mcp_service()
+    - get_mcp_health()
+
+dont_do:
+  - Create duplicate files for corrections (e.g., models_simple.py)
+  - Store GOOGLE_API_KEY in secrets (use ADC)
+  - Allow unauthenticated access to Cloud Run
+  - Skip Decimal to float conversion in JSON responses
+  - Use pip when UV is available
