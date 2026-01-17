@@ -259,6 +259,58 @@ python scripts/migrate_booking_tables.py
 └─────────────────┘  └─────────────────┘  └─────────────────┘
 ```
 
+## Lessons Learned
+
+| Issue | Context | Solution |
+|-------|---------|----------|
+| stateless_http | FastMCP on Cloud Run | Add `stateless_http=True` to FastMCP configuration |
+| decimal_json | Product resource returning price | Convert `Decimal` to `float()` before JSON serialization |
+| adc_for_embeddings | Gemini API access | `USE_ADC=true` eliminates need for GOOGLE_API_KEY secret |
+| sse_response_parsing | Production test suite | Parse SSE format with JSON-RPC notifications filtering |
+| unaccent_search | Spanish/accented text search | Use `unaccent` extension with `pg_trgm` for fuzzy matching |
+| booking_migration | Adding booking system | Use `asyncpg` for Python migrations, `psql` for SQL scripts |
+
+## Anti-Patterns (Don't Do)
+
+- **Never create duplicate files for corrections** (e.g., `models_simple.py`) - edit the original
+- **Never store GOOGLE_API_KEY in secrets** - use ADC (`USE_ADC=true`)
+- **Never allow unauthenticated access** to Cloud Run (`--no-allow-unauthenticated`)
+- **Never skip Decimal to float conversion** in JSON responses
+- **Never use pip when UV is available** - UV is 10-100x faster
+
+## Code Patterns
+
+### MCP Context Logging
+```python
+ctx.report_progress(current, total)
+ctx.info("message")
+ctx.debug("message")
+ctx.warning("message")
+ctx.error("message")
+```
+
+### Tool Annotations
+```python
+from mcp.server.fastmcp import ToolAnnotations
+
+annotations=ToolAnnotations(
+    readOnlyHint=True,
+    idempotentHint=True,
+    openWorldHint=False
+)
+```
+
+### Async Resources
+- All resources must be `async`
+- Include MIME types in responses
+- Return structured JSON error responses
+
+### Decimal Serialization
+```python
+# Always convert Decimal to float for JSON
+price = float(product.price)  # NOT product.price directly
+```
+
 ## Quick Commands
 
 ```bash
@@ -275,4 +327,7 @@ gcloud run services logs read mcp-server --region=us-central1
 # Local development
 make install-dev
 python server.py
+
+# Run production tests
+python scripts/test_production.py
 ```

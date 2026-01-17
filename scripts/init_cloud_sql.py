@@ -54,7 +54,7 @@ async def init_database():
         await conn.execute("CREATE SCHEMA IF NOT EXISTS test")
         print("  ✓ test schema")
 
-        # Step 3: Create normalize_text function
+        # Step 3: Create functions for fuzzy search
         print("\n=== Creating Functions ===")
         await conn.execute("""
             CREATE OR REPLACE FUNCTION test.normalize_text(input_text TEXT)
@@ -65,6 +65,16 @@ async def init_database():
             $$ LANGUAGE plpgsql IMMUTABLE
         """)
         print("  ✓ normalize_text()")
+
+        await conn.execute("""
+            CREATE OR REPLACE FUNCTION test.immutable_array_to_string(arr TEXT[], sep TEXT)
+            RETURNS TEXT AS $$
+            BEGIN
+                RETURN array_to_string(arr, sep);
+            END;
+            $$ LANGUAGE plpgsql IMMUTABLE
+        """)
+        print("  ✓ immutable_array_to_string()")
 
         # Step 4: Create products table
         print("\n=== Creating Tables ===")
@@ -107,12 +117,16 @@ async def init_database():
         """)
         print("  ✓ appointments table")
 
-        # Step 6: Create indexes
+        # Step 6: Create indexes (functional indexes for normalize_text queries)
         print("\n=== Creating Indexes ===")
         indexes = [
-            ("idx_products_category_trgm", "CREATE INDEX IF NOT EXISTS idx_products_category_trgm ON test.products USING GIN (category gin_trgm_ops)"),
-            ("idx_products_name_trgm", "CREATE INDEX IF NOT EXISTS idx_products_name_trgm ON test.products USING GIN (name gin_trgm_ops)"),
-            ("idx_products_brand", "CREATE INDEX IF NOT EXISTS idx_products_brand ON test.products (brand)"),
+            # Products: functional indexes matching normalize_text() queries
+            ("idx_products_name_norm_trgm", "CREATE INDEX IF NOT EXISTS idx_products_name_norm_trgm ON test.products USING GIN (normalize_text(name) gin_trgm_ops)"),
+            ("idx_products_description_norm_trgm", "CREATE INDEX IF NOT EXISTS idx_products_description_norm_trgm ON test.products USING GIN (normalize_text(description) gin_trgm_ops)"),
+            ("idx_products_category_norm_trgm", "CREATE INDEX IF NOT EXISTS idx_products_category_norm_trgm ON test.products USING GIN (normalize_text(category) gin_trgm_ops)"),
+            ("idx_products_brand_norm_trgm", "CREATE INDEX IF NOT EXISTS idx_products_brand_norm_trgm ON test.products USING GIN (normalize_text(brand) gin_trgm_ops)"),
+            ("idx_products_tags_norm_trgm", "CREATE INDEX IF NOT EXISTS idx_products_tags_norm_trgm ON test.products USING GIN (normalize_text(test.immutable_array_to_string(tags, ' ')) gin_trgm_ops)"),
+            # Appointments
             ("idx_appointments_email", "CREATE INDEX IF NOT EXISTS idx_appointments_customer_email ON test.appointments (customer_email)"),
             ("idx_appointments_date", "CREATE INDEX IF NOT EXISTS idx_appointments_booking_date ON test.appointments (booking_date)"),
         ]

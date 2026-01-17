@@ -93,24 +93,39 @@ CREATE TABLE IF NOT EXISTS :schema_name.products (
 -- ============================================================================
 -- Step 5: Create Indexes for Products
 -- ============================================================================
+-- IMPORTANT: These are FUNCTIONAL indexes matching normalize_text() queries.
+-- The query uses: WHERE similarity(normalize_text(name), ...) >= threshold
+-- So the index must be on: normalize_text(name), NOT just (name)
 
 -- SKU lookup (unique index already created by UNIQUE constraint)
 
--- Category filter + fuzzy search
-CREATE INDEX IF NOT EXISTS idx_products_category_trgm
-    ON :schema_name.products USING GIN (category gin_trgm_ops);
+-- Name: functional index matching normalize_text(name)
+CREATE INDEX IF NOT EXISTS idx_products_name_norm_trgm
+    ON :schema_name.products USING GIN (normalize_text(name) gin_trgm_ops);
 
--- Name fuzzy search
-CREATE INDEX IF NOT EXISTS idx_products_name_trgm
-    ON :schema_name.products USING GIN (name gin_trgm_ops);
+-- Description: functional index matching normalize_text(description)
+CREATE INDEX IF NOT EXISTS idx_products_description_norm_trgm
+    ON :schema_name.products USING GIN (normalize_text(description) gin_trgm_ops);
 
--- Description fuzzy search
-CREATE INDEX IF NOT EXISTS idx_products_description_trgm
-    ON :schema_name.products USING GIN (description gin_trgm_ops);
+-- Category: functional index matching normalize_text(category)
+CREATE INDEX IF NOT EXISTS idx_products_category_norm_trgm
+    ON :schema_name.products USING GIN (normalize_text(category) gin_trgm_ops);
 
--- Brand filter
-CREATE INDEX IF NOT EXISTS idx_products_brand
-    ON :schema_name.products (brand);
+-- Brand: GIN trigram for word_similarity queries
+CREATE INDEX IF NOT EXISTS idx_products_brand_norm_trgm
+    ON :schema_name.products USING GIN (normalize_text(brand) gin_trgm_ops);
+
+-- Tags: functional index for array field used in search
+-- NOTE: array_to_string is STABLE, not IMMUTABLE, so we need a wrapper function
+CREATE OR REPLACE FUNCTION :schema_name.immutable_array_to_string(arr TEXT[], sep TEXT)
+RETURNS TEXT AS $$
+BEGIN
+    RETURN array_to_string(arr, sep);
+END;
+$$ LANGUAGE plpgsql IMMUTABLE;
+
+CREATE INDEX IF NOT EXISTS idx_products_tags_norm_trgm
+    ON :schema_name.products USING GIN (normalize_text(:schema_name.immutable_array_to_string(tags, ' ')) gin_trgm_ops);
 
 -- Vector similarity search (IVF index for large datasets)
 -- Note: Only create after loading data. Lists = sqrt(row_count)

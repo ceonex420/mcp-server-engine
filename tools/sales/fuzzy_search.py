@@ -29,6 +29,20 @@ from utils.validation import validate_schema_name
 logger = get_logger("mcp_tools_fuzzy")
 
 
+def _get_field_expression(field: str) -> str:
+    """Get SQL expression for a field, handling arrays like tags.
+
+    Args:
+        field: Field name
+
+    Returns:
+        SQL expression to use in similarity functions
+    """
+    if field == "tags":
+        return "array_to_string(tags, ' ')"
+    return field
+
+
 async def fuzzy_search_async(
     query: str,
     fields: list[str] | None = None,
@@ -62,7 +76,7 @@ async def fuzzy_search_async(
     if fields is None:
         fields = ["name", "description"]
 
-    valid_fields = {"name", "description", "brand", "category"}
+    valid_fields = {"name", "description", "brand", "category", "tags"}
     invalid_fields = set(fields) - valid_fields
     if invalid_fields:
         raise ValueError(
@@ -87,12 +101,13 @@ async def fuzzy_search_async(
 
     for field in fields:
         param_count += 1  # noqa: SIM113
+        field_expr = _get_field_expression(field)
         similarity_conditions.append(
-            f"similarity(normalize_text({field}), normalize_text(${param_count})) >= ${param_count + len(fields)}"
+            f"similarity(normalize_text({field_expr}), normalize_text(${param_count})) >= ${param_count + len(fields)}"
         )
         if include_similarity:
             similarity_selects.append(
-                f"similarity(normalize_text({field}), normalize_text(${param_count})) AS {field}_similarity"
+                f"similarity(normalize_text({field_expr}), normalize_text(${param_count})) AS {field}_similarity"
             )
 
     base_fields = "id, sku, name, description, category, brand, tags, color, size, price"
@@ -102,7 +117,7 @@ async def fuzzy_search_async(
         select_fields += ", " + ", ".join(similarity_selects)
         max_similarities = ", ".join(
             [
-                f"similarity(normalize_text({f}), normalize_text(${i + 1}))"
+                f"similarity(normalize_text({_get_field_expression(f)}), normalize_text(${i + 1}))"
                 for i, f in enumerate(fields)
             ]
         )
@@ -198,7 +213,7 @@ async def fuzzy_search_smart_async(
         return PaginatedResponse.empty(page_params, query=query).to_dict()
 
     if fields is None:
-        fields = ["name", "description", "category"]
+        fields = ["name", "description", "category", "tags"]
 
     logger.info(
         "Starting async smart fuzzy search: query='%s', fields=%s, limit=%d, offset=%d",
@@ -247,6 +262,7 @@ async def fuzzy_search_smart_async(
         "description": description_weight,
         "category": category_weight,
         "brand": brand_weight,
+        "tags": 1.5,  # High priority for tag matches
     }
 
     base_fields = "id, sku, name, description, category, brand, tags, color, size, price"
@@ -260,18 +276,19 @@ async def fuzzy_search_smart_async(
         weight = field_weights.get(field, 1.0)
         total_weight += weight
         param_idx += 1  # noqa: SIM113
+        field_expr = _get_field_expression(field)
 
         word_conditions.append(
-            f"word_similarity(${param_idx}, {field}) >= ${param_idx + len(fields) * 3}"
+            f"word_similarity(${param_idx}, {field_expr}) >= ${param_idx + len(fields) * 3}"
         )
-        word_selects.append(f"word_similarity(${param_idx}, {field}) AS {field}_word_sim")
+        word_selects.append(f"word_similarity(${param_idx}, {field_expr}) AS {field}_word_sim")
         weighted_components.append(
-            f"(word_similarity(${param_idx + len(fields)}, {field}) * {weight})"
+            f"(word_similarity(${param_idx + len(fields)}, {field_expr}) * {weight})"
         )
 
     weighted_score = f"({' + '.join(weighted_components)}) / {total_weight}"
     max_word_similarities = ", ".join(
-        [f"word_similarity(${i + 1 + len(fields) * 2}, {f})" for i, f in enumerate(fields)]
+        [f"word_similarity(${i + 1 + len(fields) * 2}, {_get_field_expression(f)})" for i, f in enumerate(fields)]
     )
 
     select_fields = (
