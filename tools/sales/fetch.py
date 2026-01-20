@@ -36,7 +36,7 @@ async def fetch_by_sku_async(sku: str) -> dict | None:
 
     Returns:
         Product dict if found, None if not found
-        Dict contains: {id, sku, name, description, category, brand, tags, color, size, price}
+        Dict contains: {id, sku, name, description, category, brand, tags, color, size, price, image_url}
 
     Example:
         >>> await fetch_by_sku_async("TOY-0018")
@@ -48,7 +48,7 @@ async def fetch_by_sku_async(sku: str) -> dict | None:
     validate_schema_name(settings.SCHEMA_NAME)
 
     sql = (
-        f"SELECT id, sku, name, description, category, brand, tags, color, size, price "
+        f"SELECT id, sku, name, description, category, brand, tags, color, size, price, image_url "
         f"FROM {settings.SCHEMA_NAME}.products WHERE sku = $1"
     )
     result = await fetchone_async(sql, sku)
@@ -75,7 +75,7 @@ async def fetch_by_id_async(product_id: int) -> dict | None:
 
     Returns:
         Product dict if found, None if not found
-        Dict contains: {id, sku, name, description, category, brand, tags, color, size, price}
+        Dict contains: {id, sku, name, description, category, brand, tags, color, size, price, image_url}
 
     Example:
         >>> await fetch_by_id_async(18)
@@ -87,7 +87,7 @@ async def fetch_by_id_async(product_id: int) -> dict | None:
     validate_schema_name(settings.SCHEMA_NAME)
 
     sql = (
-        f"SELECT id, sku, name, description, category, brand, tags, color, size, price "
+        f"SELECT id, sku, name, description, category, brand, tags, color, size, price, image_url "
         f"FROM {settings.SCHEMA_NAME}.products WHERE id = $1"
     )
     result = await fetchone_async(sql, product_id)

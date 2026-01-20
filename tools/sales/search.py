@@ -50,7 +50,7 @@ async def search_products_async(
 
     Returns:
         PaginatedResponse dict with items, count, total_count, and pagination metadata
-        Each item: {id, sku, name, description, category, brand, tags, color, size, price}
+        Each item: {id, sku, name, description, category, brand, tags, color, size, price, image_url}
 
     Raises:
         Exception: If embedding generation fails or database error occurs
@@ -83,7 +83,7 @@ async def search_products_async(
 
     # asyncpg uses $1, $2, etc. for parameters
     sql = (
-        f"SELECT id, sku, name, description, category, brand, tags, color, size, price,"
+        f"SELECT id, sku, name, description, category, brand, tags, color, size, price, image_url,"
         f" embedding <-> $1 AS distance"
         f" FROM {settings.SCHEMA_NAME}.products"
         f" WHERE embedding IS NOT NULL"

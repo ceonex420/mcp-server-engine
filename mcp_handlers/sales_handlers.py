@@ -136,7 +136,7 @@ def register_tools() -> None:
 
         Returns:
             Product details dict if found, None otherwise
-            Returns: {id, sku, name, description, category, brand, tags, color, size, price}
+            Returns: {id, sku, name, description, category, brand, tags, color, size, price, image_url}
         """
         try:
             await ctx.debug(f"fetch_by_sku called with sku={sku}")
@@ -238,7 +238,7 @@ def register_tools() -> None:
 
         Returns:
             PaginatedResponse with items, count, total_count, and pagination metadata
-            Each product: {id, sku, name, description, category, brand, tags, color, size, price}
+            Each product: {id, sku, name, description, category, brand, tags, color, size, price, image_url}
         """
         try:
             # Concurrency control - limits max concurrent requests
@@ -406,7 +406,7 @@ def register_tools() -> None:
 
         Returns:
             PaginatedResponse with items, count, total_count, and pagination metadata
-            Each product includes: max_similarity, search_tier, [field]_similarity
+            Each product includes: id, sku, name, description, category, brand, tags, color, size, price, image_url, max_similarity, search_tier, [field]_similarity
         """
         try:
             # Concurrency control - limits max concurrent requests

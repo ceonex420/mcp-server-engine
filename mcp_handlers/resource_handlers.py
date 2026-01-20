@@ -68,6 +68,7 @@ def register_resources() -> None:
                             "category": product.get("category", "N/A"),
                             "brand": product.get("brand", "N/A"),
                             "price": price,
+                            "image_url": product.get("image_url"),
                         },
                     }
                 )

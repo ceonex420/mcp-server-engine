@@ -110,7 +110,7 @@ async def fuzzy_search_async(
                 f"similarity(normalize_text({field_expr}), normalize_text(${param_count})) AS {field}_similarity"
             )
 
-    base_fields = "id, sku, name, description, category, brand, tags, color, size, price"
+    base_fields = "id, sku, name, description, category, brand, tags, color, size, price, image_url"
     select_fields = base_fields
 
     if include_similarity:
@@ -265,7 +265,7 @@ async def fuzzy_search_smart_async(
         "tags": 1.5,  # High priority for tag matches
     }
 
-    base_fields = "id, sku, name, description, category, brand, tags, color, size, price"
+    base_fields = "id, sku, name, description, category, brand, tags, color, size, price, image_url"
     word_conditions = []
     word_selects = []
     weighted_components = []
