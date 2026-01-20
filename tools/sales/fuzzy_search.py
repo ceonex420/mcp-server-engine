@@ -343,8 +343,59 @@ async def fuzzy_search_smart_async(
     except Exception as e:
         logger.error("Error in Tier 2 async word similarity search: %s", e)
 
+    # Tier 2.5: Token-based search for multi-word queries
+    # Note: NLP service now handles entity extraction, so queries should arrive clean.
+    # This tier serves as fallback for direct MCP calls with multi-word queries.
+    # Simple split - assumes NLP service sends clean terms, or uses basic tokenization.
+    tokens = [t for t in query.lower().split() if len(t) >= 3]
+    if len(tokens) > 1:
+        logger.info(
+            "Tier 2 no results, trying Tier 2.5 (token-based search) with %d tokens: %s",
+            len(tokens), tokens
+        )
+
+        seen_ids: set[int] = set()
+        all_token_results: list[dict] = []
+
+        for i, token in enumerate(tokens):
+            # Position weight: first token = 1.0, second = 0.5, third = 0.33, etc.
+            position_weight = 1.0 / (i + 1)
+
+            token_results = await fuzzy_search_async(
+                query=token,
+                fields=fields,
+                min_similarity=0.20,  # Lower threshold for individual tokens
+                limit=page_params.limit,
+                include_similarity=True,
+            )
+
+            for result in token_results:
+                product_id = result.get("id")
+                if product_id and product_id not in seen_ids:
+                    seen_ids.add(product_id)
+                    result["search_tier"] = "token_based"
+                    result["_matched_token"] = token
+                    result["_position_weight"] = position_weight
+                    # Adjust score by position weight
+                    if "max_similarity" in result:
+                        result["max_similarity"] = result["max_similarity"] * position_weight
+                    all_token_results.append(result)
+
+        if all_token_results:
+            # Sort by weighted similarity and limit
+            all_token_results.sort(
+                key=lambda x: x.get("max_similarity", 0),
+                reverse=True
+            )
+            paginated_results = all_token_results[:page_params.limit]
+            logger.info(
+                "Async smart search succeeded at Tier 2.5: %d results from %d tokens",
+                len(paginated_results), len(tokens)
+            )
+            return make_response(paginated_results)
+
     # Tier 3: Relaxed threshold as final fallback
-    logger.info("Tier 2 no results, trying Tier 3 (relaxed threshold)")
+    logger.info("Tier 2.5 no results, trying Tier 3 (relaxed threshold)")
     results = await fuzzy_search_async(
         query=query,
         fields=fields,

@@ -11,7 +11,7 @@
 #   make logs          View logs
 # ============================================================================
 
-.PHONY: help build up down logs restart shell clean lint format test health
+.PHONY: help build up down logs restart shell clean lint format test health deploy url logs-cloud
 
 # Default target
 .DEFAULT_GOAL := help
@@ -20,6 +20,18 @@
 IMAGE_NAME := mcp-server
 CONTAINER_NAME := mcp-server
 COMPOSE_FILE := docker-compose.yml
+
+# GCP Variables
+PROJECT_ID := gen-lang-client-0329024102
+REGION := us-central1
+SERVICE_NAME := mcp-server
+
+# Colors for output
+CYAN := \033[36m
+GREEN := \033[32m
+YELLOW := \033[33m
+RESET := \033[0m
+BOLD := \033[1m
 
 # ============================================================================
 # Help
@@ -136,3 +148,37 @@ env-check: ## Validate required environment variables
 	@test -n "$$GOOGLE_API_KEY" || (echo "ERROR: GOOGLE_API_KEY not set" && exit 1)
 	@test -n "$$DATABASE_URL" || test -n "$$POSTGRES_PASSWORD" || (echo "ERROR: DATABASE_URL or POSTGRES_PASSWORD not set" && exit 1)
 	@echo "All required variables are set"
+
+# ============================================================================
+# Cloud Run Deployment
+# ============================================================================
+.PHONY: deploy url logs-cloud
+
+deploy: ## Deploy to Cloud Run using Cloud Build
+	@echo ""
+	@echo "$(BOLD)Deploying $(SERVICE_NAME) to Cloud Run...$(RESET)"
+	@echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+	@echo "$(CYAN)Image tag: $$(git rev-parse --short HEAD)$(RESET)"
+	@echo ""
+	@gcloud builds submit \
+		--config=cloudbuild.yaml \
+		--project=$(PROJECT_ID) \
+		--substitutions=_TAG=$$(git rev-parse --short HEAD) \
+		--quiet
+	@echo ""
+	@echo "$(GREEN)$(BOLD)Deploy complete!$(RESET)"
+	@echo ""
+	@make -s url
+
+url: ## Show Cloud Run service URL
+	@echo "$(CYAN)Service URL:$(RESET)"
+	@gcloud run services describe $(SERVICE_NAME) \
+		--region=$(REGION) \
+		--project=$(PROJECT_ID) \
+		--format='value(status.url)'
+
+logs-cloud: ## View Cloud Run logs (last 50 entries)
+	@gcloud logging read 'resource.labels.service_name="$(SERVICE_NAME)"' \
+		--project=$(PROJECT_ID) \
+		--limit=50 \
+		--format='table(timestamp,textPayload)'
