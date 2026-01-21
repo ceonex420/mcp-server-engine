@@ -21,6 +21,7 @@ from tools.sales import (
     fetch_by_sku_async,
     fuzzy_search_smart_async,
     search_products_async,
+    search_products_by_embedding_async,
 )
 from utils.concurrency import ConcurrencyLimitExceeded, acquire_slot
 from utils.logger import get_logger
@@ -489,6 +490,122 @@ def register_tools() -> None:
             await ctx.error(f"Error in fuzzy_search_smart: {e!s}")
             raise
 
+    @mcp.tool(  # type: ignore[union-attr]
+        annotations=ToolAnnotations(
+            title="Visual Similarity Search",
+            readOnlyHint=True,
+            idempotentHint=True,
+        )
+    )
+    async def search_products_by_embedding(
+        ctx: Context,
+        image_embedding: list[float],
+        limit: int = 5,
+        offset: int = 0,
+    ) -> dict[str, Any]:
+        """
+        Search products using image embedding vector for visual similarity (Google Lens style).
+
+        ** WHEN TO USE THIS TOOL **:
+        ✅ User has sent a PHOTO of a product and you have an image_embedding
+        ✅ Visual search context - finding products that LOOK similar
+        ✅ When image_embedding is provided in the conversation context
+
+        ** EXAMPLES OF VALID USE **:
+        - User sends photo of a laptop → find similar laptops by appearance
+        - User sends photo of a shoe → find visually similar shoes
+        - User sends photo of any product → find matching products
+
+        ** DON'T USE WHEN **:
+        ❌ No image_embedding is provided (use fuzzy_search_smart instead)
+        ❌ User is searching by text/name (use fuzzy_search_smart)
+        ❌ User is searching by concept/need (use search_products)
+
+        ** HOW IT WORKS **:
+        - Compares the provided 1536-dim embedding with product embeddings
+        - Uses cosine similarity for accurate visual matching
+        - Returns products ordered by visual similarity score (0-1)
+
+        ** PERFORMANCE **:
+        - Ultra-fast: ~10-15ms (no embedding generation needed)
+        - Direct vector comparison using pgvector
+
+        Args:
+            ctx: MCP context for logging and progress
+            image_embedding: 1536-dimensional embedding vector from image
+            limit: Number of results to return (default: 5, max: 100)
+            offset: Number of results to skip for pagination (default: 0)
+
+        Returns:
+            PaginatedResponse with items, count, total_count, and pagination metadata
+            Each product includes: id, sku, name, description, category, brand, tags,
+            color, size, price, image_url, similarity_score (0-1, higher = more similar)
+        """
+        try:
+            # Concurrency control
+            try:
+                async with acquire_slot():
+                    # Rate limiting check
+                    session_key = ctx.request_id or "anonymous"
+                    if not search_limiter.check(session_key):
+                        await ctx.warning("Search rate limit exceeded")
+                        return {
+                            "items": [],
+                            "count": 0,
+                            "total_count": 0,
+                            "rate_limited": True,
+                        }
+
+                    # Validate embedding dimension
+                    if len(image_embedding) != 1536:
+                        await ctx.error(
+                            f"Invalid embedding dimension: {len(image_embedding)}, expected 1536"
+                        )
+                        return {
+                            "items": [],
+                            "count": 0,
+                            "total_count": 0,
+                            "error": f"Invalid embedding dimension: {len(image_embedding)}",
+                        }
+
+                    await ctx.report_progress(progress=0.1, total=1.0)
+                    await ctx.info(
+                        f"Starting visual similarity search with {len(image_embedding)}-dim embedding"
+                    )
+
+                    # Call async function with pagination
+                    result = await search_products_by_embedding_async(
+                        image_embedding=image_embedding,
+                        limit=limit,
+                        offset=offset,
+                    )
+
+                    await ctx.report_progress(progress=1.0, total=1.0)
+                    items = result.get("items", [])
+
+                    if items:
+                        top_similarity = items[0].get("similarity_score", 0)
+                        await ctx.info(
+                            f"Visual search completed: {len(items)} results, "
+                            f"top similarity: {top_similarity:.3f}"
+                        )
+                    else:
+                        await ctx.info("Visual search completed: no matches found")
+
+                    return result
+
+            except ConcurrencyLimitExceeded:
+                await ctx.warning("Server at capacity, too many concurrent requests")
+                return {
+                    "items": [],
+                    "count": 0,
+                    "total_count": 0,
+                    "concurrency_limited": True,
+                }
+        except Exception as e:
+            await ctx.error(f"Error in search_products_by_embedding: {e!s}")
+            raise
+
     # === DYNAMIC TOOL REGISTRATION ===
     # Register each tool in the appropriate category (no hardcoding!)
     # This replaces the hardcoded lists in get_sales_tool_names() and get_pageable_tool_names()
@@ -497,6 +614,7 @@ def register_tools() -> None:
         "fetch_by_id",
         "search_products",
         "fuzzy_search_smart",
+        "search_products_by_embedding",
     ]
     sales_tool_registry.register_tools(sales_tools, "sales")
 
@@ -504,6 +622,7 @@ def register_tools() -> None:
     pageable_tools = [
         "fuzzy_search_smart",
         "search_products",
+        "search_products_by_embedding",
     ]
     pageable_tool_registry.register_tools(pageable_tools, "pageable")
 
