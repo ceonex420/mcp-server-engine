@@ -25,6 +25,33 @@
 - Booking system fully operational (migration 002 applied)
 - Tables: service_types, business_hours + appointments columns added
 - Functions: is_slot_available(), get_available_slots()
+- Visual Search 4-tier confidence system (2026-01-22)
+
+## Visual Search Confidence Tiers (2026-01-22)
+
+`tools/sales/embedding_search.py` implementa sistema de 4 niveles de confianza:
+
+| Tier | Threshold | Response |
+|------|-----------|----------|
+| high | ≥75% | Productos mostrados con confianza |
+| medium | 60-75% | Productos con nota "podrían interesarte" |
+| low | 45-60% | Productos con `low_confidence: True` |
+| none | <45% | Sin resultados (filtrados) |
+
+**Response incluye:**
+```json
+{
+  "items": [...],
+  "confidence_tier": "high",
+  "best_match_score": 0.956,
+  "search_type": "embedding_similarity"
+}
+```
+
+**Logs:**
+```
+visual_search_tier_classification: tier=high, high=5, medium=0, low=0, best_score=0.956
+```
 
 ## Production Test Suite (Dec 2025)
 

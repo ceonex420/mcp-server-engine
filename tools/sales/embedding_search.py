@@ -17,6 +17,13 @@ from utils.validation import validate_schema_name
 
 logger = get_logger("mcp_tools_embedding_search")
 
+# Confidence tier thresholds for visual search results (Context7 best practice)
+# Follows the same 4-tier system as fuzzy_search.py for consistency
+HIGH_CONFIDENCE_THRESHOLD = 0.75  # ≥75%: Show products confidently
+MEDIUM_CONFIDENCE_THRESHOLD = 0.60  # 60-75%: Show with "might interest you" note
+LOW_CONFIDENCE_THRESHOLD = 0.45  # 45-60%: Show with low_confidence flag
+# Below 45%: Filter out (not similar enough to be useful)
+
 
 async def search_products_by_embedding_async(
     image_embedding: list[float],
@@ -26,16 +33,17 @@ async def search_products_by_embedding_async(
     """Search products by visual similarity using image embedding vectors.
 
     Performs visual similarity search by comparing the provided image embedding
-    with stored product embeddings using cosine distance (pgvector).
+    with stored product image_embeddings using cosine distance (pgvector).
 
     This is used for "Google Lens style" visual search:
     - User sends a photo of a product
-    - OCR service generates 1536-dim embedding
+    - OCR service generates 1536-dim embedding from image description
     - This function finds visually similar products
 
     Implementation:
     - Uses PostgreSQL pgvector extension with <=> (cosine distance) operator
-    - Searches indexed embedding column (vector(1536) type)
+    - Searches indexed image_embedding column (vector(1536) type, from Vision AI)
+    - Separate from text embedding column (used for text-based search)
     - Returns products ordered by visual similarity
 
     Use cases:
@@ -76,22 +84,23 @@ async def search_products_by_embedding_async(
     # Validate schema name to prevent SQL injection
     validate_schema_name(settings.SCHEMA_NAME)
 
-    # First get total count of products with embeddings
+    # First get total count of products with image embeddings
     count_sql = (
         f"SELECT COUNT(*) as total FROM {settings.SCHEMA_NAME}.products "
-        f"WHERE embedding IS NOT NULL"
+        f"WHERE image_embedding IS NOT NULL"
     )
 
     # Use cosine distance (<=> operator) for better similarity comparison
     # Cosine distance is 1 - cosine_similarity, so lower is more similar
     # We calculate similarity as 1 - cosine_distance for intuitive 0-1 scale
+    # Note: Uses image_embedding (from Vision AI) for visual search
     sql = f"""
         SELECT
             id, sku, name, description, category, brand, tags, color, size, price, image_url,
-            1 - (embedding <=> $1) AS similarity_score
+            1 - (image_embedding <=> $1) AS similarity_score
         FROM {settings.SCHEMA_NAME}.products
-        WHERE embedding IS NOT NULL
-        ORDER BY embedding <=> $1
+        WHERE image_embedding IS NOT NULL
+        ORDER BY image_embedding <=> $1
         LIMIT $2 OFFSET $3
     """
 
@@ -108,20 +117,70 @@ async def search_products_by_embedding_async(
         )
 
         # Log top match similarity for debugging
+        best_match_score = rows[0].get("similarity_score", 0) if rows else 0
         if rows:
-            top_similarity = rows[0].get("similarity_score", 0)
             logger.debug(
                 "Top match: %s (similarity: %.3f)",
                 rows[0].get("name", "Unknown"),
-                top_similarity,
+                best_match_score,
             )
 
-        # Build paginated response
+        # Classify results by confidence tier (4-tier system like fuzzy_search.py)
+        high_confidence = [
+            r for r in rows if r.get("similarity_score", 0) >= HIGH_CONFIDENCE_THRESHOLD
+        ]
+        medium_confidence = [
+            r
+            for r in rows
+            if MEDIUM_CONFIDENCE_THRESHOLD
+            <= r.get("similarity_score", 0)
+            < HIGH_CONFIDENCE_THRESHOLD
+        ]
+        low_confidence = [
+            r
+            for r in rows
+            if LOW_CONFIDENCE_THRESHOLD
+            <= r.get("similarity_score", 0)
+            < MEDIUM_CONFIDENCE_THRESHOLD
+        ]
+
+        # Determine which tier to use (prioritize higher confidence)
+        if high_confidence:
+            items = high_confidence[: params.limit]
+            confidence_tier = "high"
+        elif medium_confidence:
+            items = medium_confidence[: params.limit]
+            confidence_tier = "medium"
+        elif low_confidence:
+            # Mark items as low_confidence (same pattern as fuzzy_search Tier 3)
+            for item in low_confidence:
+                item["low_confidence"] = True
+            items = low_confidence[: params.limit]
+            confidence_tier = "low"
+        else:
+            items = []
+            confidence_tier = "none"
+
+        logger.info(
+            "visual_search_tier_classification: tier=%s, high=%d, medium=%d, low=%d, "
+            "best_score=%.3f, returning=%d items",
+            confidence_tier,
+            len(high_confidence),
+            len(medium_confidence),
+            len(low_confidence),
+            best_match_score,
+            len(items),
+        )
+
+        # Build paginated response with confidence metadata
+        # Note: extra fields are passed as **kwargs, not as a dict
         response = PaginatedResponse.create(
-            items=rows,
+            items=items,
             total_count=total_count,
             params=params,
-            extra={"search_type": "embedding_similarity"},
+            search_type="embedding_similarity",
+            confidence_tier=confidence_tier,
+            best_match_score=best_match_score,
         )
 
         return response.to_dict()
