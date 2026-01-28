@@ -105,12 +105,17 @@ async def _get_conversation_messages(
     """
     validate_schema_name(settings.SCHEMA_NAME)
 
+    # Use subquery to get most recent messages, then order ASC for proper aggregation
     sql = f"""
         SELECT role, content, created_at
-        FROM {settings.SCHEMA_NAME}.nlp_conversation_history
-        WHERE conversation_id = $1
+        FROM (
+            SELECT role, content, created_at
+            FROM {settings.SCHEMA_NAME}.nlp_conversation_history
+            WHERE conversation_id = $1
+            ORDER BY created_at DESC
+            LIMIT $2
+        ) recent_messages
         ORDER BY created_at ASC
-        LIMIT $2
     """
 
     try:
