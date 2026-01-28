@@ -300,6 +300,26 @@ class Settings(BaseSettings):
     )
 
     # ============================================================================
+    # BANT Service Integration (Lead Qualification)
+    # ============================================================================
+    BANT_SERVICE_ENABLED: bool = Field(
+        default=True,
+        description="Enable BANT lead qualification tool",
+    )
+
+    BANT_SERVICE_URL: str = Field(
+        default="https://bant-service-4k3haexkga-uc.a.run.app",
+        description="Base URL for BANT service (Cloud Run)",
+    )
+
+    BANT_SERVICE_TIMEOUT_SECONDS: float = Field(
+        default=30.0,
+        gt=0,
+        le=60,
+        description="HTTP timeout for BANT service requests (seconds)",
+    )
+
+    # ============================================================================
     # OTP (One-Time Password) Configuration
     # ============================================================================
     OTP_ENABLED: bool = Field(

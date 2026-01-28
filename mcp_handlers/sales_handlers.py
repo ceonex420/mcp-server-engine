@@ -23,6 +23,7 @@ from tools.sales import (
     search_products_async,
     search_products_by_embedding_async,
 )
+from tools.sales.bant_analyzer import analyze_lead_bant_async
 from utils.concurrency import ConcurrencyLimitExceeded, acquire_slot
 from utils.logger import get_logger
 from utils.rate_limiter import RateLimiter
@@ -606,6 +607,105 @@ def register_tools() -> None:
             await ctx.error(f"Error in search_products_by_embedding: {e!s}")
             raise
 
+    @mcp.tool(  # type: ignore[union-attr]
+        annotations=ToolAnnotations(
+            title="BANT Lead Qualification",
+            readOnlyHint=False,  # Creates database record
+            idempotentHint=False,  # Each call creates new lead record
+        )
+    )
+    async def analyze_lead_bant(
+        ctx: Context,
+        conversation_id: str,
+        user_id: str | None = None,
+        channel: str = "telegram",
+    ) -> dict[str, Any]:
+        """
+        Analyze conversation for BANT lead qualification (Budget, Authority, Need, Timeline).
+
+        ** WHEN TO USE THIS TOOL **:
+        ✅ Customer shows BUYING INTENT (asks about prices, availability, how to order)
+        ✅ Customer mentions BUDGET, TIMELINE, or DECISION-MAKING AUTHORITY
+        ✅ Conversation has 3+ messages about specific products
+        ✅ Before ENDING a sales conversation (to record qualification)
+        ✅ Customer uses phrases like:
+           - "quiero comprar", "cómo ordeno", "cuánto cuesta", "está disponible"
+           - "tengo presupuesto de...", "mi límite es...", "puedo pagar..."
+           - "soy el gerente", "decido las compras", "mi jefe aprobó..."
+           - "lo necesito para...", "antes de fin de mes", "es urgente"
+
+        ** DON'T USE WHEN **:
+        ❌ Customer is just browsing or asking general questions
+        ❌ No buying signals detected in conversation
+        ❌ Conversation has less than 3 substantive messages
+
+        ** HOW IT WORKS **:
+        1. Retrieves conversation history from database (nlp_conversation_history)
+        2. Aggregates user messages into analysis text
+        3. Calls BANT service with Gemini AI for scoring
+        4. Returns qualification tier and actionable recommendation
+
+        ** QUALIFICATION TIERS **:
+        - Hot (8-10): Customer ready to buy. Prioritize closure, offer payment options.
+        - Warm (6-7): Good prospect. Continue nurturing, answer questions, suggest products.
+        - Cold (4-5): Early stage. Provide general info without pressure.
+        - Unqualified (0-3): Not a qualified prospect. Respond politely, don't push sale.
+
+        ** HOW TO USE THE RESULT **:
+        - Hot: "¡Excelente elección! ¿Te gustaría que te ayude con el proceso de compra?"
+        - Warm: "Tenemos varias opciones que podrían interesarte. ¿Quieres que te muestre más?"
+        - Cold: "Aquí tienes la información. Estoy disponible si tienes más preguntas."
+        - Unqualified: "¿Hay algo más en lo que pueda ayudarte hoy?"
+
+        ** PERFORMANCE **:
+        - Average: ~2-3 seconds (includes AI analysis)
+        - Creates a database record for analytics
+
+        Args:
+            ctx: MCP context for logging and progress
+            conversation_id: Telegram chat_id or session identifier (required)
+            user_id: Optional user UUID for customer-level analytics
+            channel: Source channel - telegram, whatsapp, web, api (default: telegram)
+
+        Returns:
+            Dict with qualification results:
+            - analyzed: bool - True if analysis succeeded
+            - lead_id: UUID of created lead record
+            - overall_score: Weighted BANT score (0-10)
+            - budget_score, authority_score, need_score, timeline_score: Individual scores
+            - qualification: Tier name (hot, warm, cold, unqualified)
+            - qualification_label: Human-readable tier label
+            - recommendation: Actionable guidance in Spanish
+            - message_count: Number of messages analyzed
+            - error: Error message if analysis failed
+        """
+        try:
+            await ctx.report_progress(progress=0.1, total=1.0)
+            await ctx.info(f"Starting BANT analysis for conversation: {conversation_id}")
+
+            # Call the async analyzer
+            result = await analyze_lead_bant_async(
+                conversation_id=conversation_id,
+                user_id=user_id,
+                channel=channel,
+            )
+
+            await ctx.report_progress(progress=1.0, total=1.0)
+
+            if result.get("analyzed"):
+                await ctx.info(
+                    f"BANT analysis completed: score={result.get('overall_score')}, "
+                    f"tier={result.get('qualification')}"
+                )
+            else:
+                await ctx.warning(f"BANT analysis failed: {result.get('error')}")
+
+            return result
+
+        except Exception as e:
+            await ctx.error(f"Error in analyze_lead_bant: {e!s}")
+            raise
+
     # === DYNAMIC TOOL REGISTRATION ===
     # Register each tool in the appropriate category (no hardcoding!)
     # This replaces the hardcoded lists in get_sales_tool_names() and get_pageable_tool_names()
@@ -615,6 +715,7 @@ def register_tools() -> None:
         "search_products",
         "fuzzy_search_smart",
         "search_products_by_embedding",
+        "analyze_lead_bant",
     ]
     sales_tool_registry.register_tools(sales_tools, "sales")
 
