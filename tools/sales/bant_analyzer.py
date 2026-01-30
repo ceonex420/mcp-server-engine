@@ -270,11 +270,19 @@ async def analyze_lead_bant_async(
     qualification = _get_qualification_tier(overall_score)
     tier_info = QUALIFICATION_TIERS[qualification]
 
+    # Extract completeness information
+    budget_explicit = result.get("budget_explicit", False)
+    authority_explicit = result.get("authority_explicit", False)
+    need_explicit = result.get("need_explicit", False)
+    timeline_explicit = result.get("timeline_explicit", False)
+    explicit_count = result.get("explicit_count", 0)
+
     logger.info(
-        "bant_analysis_complete: conversation_id=%s, overall_score=%d, tier=%s",
+        "bant_analysis_complete: conversation_id=%s, overall_score=%d, tier=%s, explicit_count=%d",
         conversation_id,
         overall_score,
         qualification,
+        explicit_count,
     )
 
     return {
@@ -288,6 +296,14 @@ async def analyze_lead_bant_async(
         "qualification": qualification,
         "qualification_label": tier_info["label"],
         "recommendation": RECOMMENDATIONS[qualification],
+        "completeness": {
+            "budget_explicit": budget_explicit,
+            "authority_explicit": authority_explicit,
+            "need_explicit": need_explicit,
+            "timeline_explicit": timeline_explicit,
+            "explicit_count": explicit_count,
+            "total_required": 4,
+        },
         "conversation_id": conversation_id,
         "message_count": message_count,
         "channel": channel,
