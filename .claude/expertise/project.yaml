@@ -163,7 +163,7 @@ lessons_learned:
 
 integration:
   orchestrator_sa: Has roles/run.invoker for service-to-service calls
-  internal_client: /home/javort/shared-libs/internal_service_client.py
+  internal_client: /Users/og/Documents/Claude/Projects/Odiseo live/shared-libs/internal_service_client.py
   methods:
     - call_mcp_service()
     - get_mcp_health()
