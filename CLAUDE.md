@@ -115,7 +115,7 @@ scripts/
   - (GOOGLE_API_KEY not needed - USE_ADC=true handles embeddings via Vertex AI)
 
 ### Service Integration
-- Updated `/home/javort/shared-libs/internal_service_client.py`
+- Updated `/Users/og/Documents/Claude/Projects/Odiseo live/shared-libs/internal_service_client.py`
 - New methods: `call_mcp_service()`, `get_mcp_health()`
 - MCP_SERVICE_URL env variable or default URL
 - Added to health_check() services

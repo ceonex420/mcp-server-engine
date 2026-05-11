@@ -440,10 +440,10 @@ class Settings(BaseSettings):
         creds_path = Path(self.GOOGLE_CALENDAR_CREDENTIALS_PATH)
         if not creds_path.is_absolute():
             # Resolve relative to project root
-            # Path(__file__) = /home/javort/Odiseo/mcp_server/config/settings.py
-            # .parent = /home/javort/Odiseo/mcp_server/config
-            # .parent.parent = /home/javort/Odiseo/mcp_server
-            # .parent.parent.parent = /home/javort/Odiseo (project root)
+            # Path(__file__) = /Users/og/Documents/Claude/Projects/Odiseo live/Odiseo/mcp_server/config/settings.py
+            # .parent = /Users/og/Documents/Claude/Projects/Odiseo live/Odiseo/mcp_server/config
+            # .parent.parent = /Users/og/Documents/Claude/Projects/Odiseo live/Odiseo/mcp_server
+            # .parent.parent.parent = /Users/og/Documents/Claude/Projects/Odiseo live/Odiseo (project root)
             return Path(__file__).parent.parent.parent / creds_path
         return creds_path
 

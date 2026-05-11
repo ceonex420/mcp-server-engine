@@ -391,7 +391,7 @@ def _mask_sensitive(value: str, show_chars: int = 4) -> str:
 ## 6. ESTRUCTURA FINAL DEL PROYECTO
 
 ```
-/home/javort/mcp-server/
+/Users/og/Documents/Claude/Projects/Odiseo live/mcp-server/
 ├── server.py                    # Entry point MCP (lazy DB init)
 ├── docker-compose.yml           # Production deployment
 ├── config/                      # Configuración

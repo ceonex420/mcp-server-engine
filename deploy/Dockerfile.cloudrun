@@ -47,7 +47,7 @@ FROM python:3.12-slim-bookworm
 
 # Metadata
 LABEL maintainer="Odiseo Team <dev@nexusintelligent.ai>" \
-      org.opencontainers.image.source="https://github.com/javierjortiz82/mcp-server" \
+      org.opencontainers.image.source="https://github.com/ceonex420/mcp-server" \
       org.opencontainers.image.description="Odiseo MCP Server - AI-Powered Product Search, Booking & OTP" \
       org.opencontainers.image.version="1.5.0"
 
